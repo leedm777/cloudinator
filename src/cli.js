@@ -7,6 +7,7 @@ import _ from 'lodash';
 import apply from './cli-apply';
 import plan from './cli-plan';
 import validate from './cli-validate';
+import { UserError } from './errors';
 
 import { initLogger, log } from './log';
 
@@ -39,4 +40,12 @@ initLogger(_.pick(program, ['bunyanFormat', 'loglevel']));
 
 program.subcommand()
   .then(() => log.trace('done'))
-  .catch(err => log.fatal({ err }, 'Uncaught exception'));
+  .catch(err => {
+    if (err instanceof UserError) {
+      log.fatal(err.message);
+    } else {
+      log.fatal({ err }, 'Uncaught exception')
+    }
+
+    process.exit(1);
+  });

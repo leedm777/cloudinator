@@ -6,10 +6,13 @@ import yaml from 'js-yaml';
 import { log } from './log';
 
 function loadJs(file) {
+  file = path.relative(__dirname, file);
+  
   if (!file.match(/\.?\.?\//)) {
     file = `./${file}`;
   }
 
+  log.debug({ file }, 'loading');
   return require(file);
 }
 

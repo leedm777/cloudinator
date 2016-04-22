@@ -10,6 +10,7 @@ export let log;
 export function initLogger({ bunyanFormat, loglevel }) {
   log = bunyan.createLogger({
     name,
+    serializers: bunyan.stdSerializers,
     level: loglevel,
     stream: bformat({
       outputMode: bunyanFormat,
