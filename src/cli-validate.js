@@ -1,7 +1,6 @@
 // Copyright (c) 2016, David M. Lee, II
 
 import AWS from 'aws-sdk';
-import _ from 'lodash';
 
 import { log } from './log';
 import { loadFile } from './loader';
@@ -14,8 +13,7 @@ const cfn = new AWS.CloudFormation({
 });
 
 
-async function validate(options) {
-  const { template } = options;
+async function validate({ template }) {
   if (!template) {
     throw new UserError('Missing argument --template');
   }
@@ -23,7 +21,7 @@ async function validate(options) {
   const content = JSON.stringify(loadFile(template));
 
   await new Promise((resole, reject) => {
-    cfn.validateTemplate({ TemplateBody: content }, (err, data) => {
+    cfn.validateTemplate({ TemplateBody: content }, (err/* , data*/) => {
       if (err) {
         reject(new UserError(err.message));
         return;

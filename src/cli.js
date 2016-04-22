@@ -5,7 +5,7 @@ import program from 'commander';
 import _ from 'lodash';
 
 import apply from './cli-apply';
-import plan from './cli-plan';
+import changeSet from './cli-change-set';
 import validate from './cli-validate';
 import { UserError } from './errors';
 
@@ -18,7 +18,7 @@ program.version(version)
   .option('   --loglevel [level]', 'Sets log level; defaults to info', 'info');
 
 apply(program);
-plan(program);
+changeSet(program);
 validate(program);
 
 program.command('*', null, { noHelp: true })
@@ -38,7 +38,7 @@ if (!program.subcommand) {
 
 initLogger(_.pick(program, ['bunyanFormat', 'loglevel']));
 
-program.subcommand()
+new Promise(resolve => resolve(program.subcommand()))
   .then(() => log.trace('done'))
   .catch(err => {
     if (err instanceof UserError) {
