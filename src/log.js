@@ -5,8 +5,10 @@ import bformat from 'bunyan-format';
 
 const { name } = require('../package.json');
 
-export function buildLogger({ bunyanFormat, loglevel }) {
-  return bunyan.createLogger({
+export let log;
+
+export function initLogger({ bunyanFormat, loglevel }) {
+  log = bunyan.createLogger({
     name,
     level: loglevel,
     stream: bformat({

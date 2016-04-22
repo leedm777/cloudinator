@@ -8,8 +8,8 @@ import { Template } from 'cfn-dsl';
 
 export default Template.build(template => {
   const imageId = template.addParamater({
-    name: 'imageId',
-    description: 'The AMI to launch',
+    Name: 'imageId',
+    Description: 'The AMI to launch',
   });
   template.addResource(new Instance({
     ImageId: imageId

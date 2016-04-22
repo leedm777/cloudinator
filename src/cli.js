@@ -2,10 +2,13 @@
 import 'babel-polyfill';
 
 import program from 'commander';
+import _ from 'lodash';
 
 import apply from './cli-apply';
 import plan from './cli-plan';
 import validate from './cli-validate';
+
+import { initLogger, log } from './log';
 
 const { version } = require('../package.json');
 
@@ -19,8 +22,21 @@ validate(program);
 
 program.command('*', null, { noHelp: true })
   .action(command => {
-    console.error(`Unknown command ${command}`); // eslint-disable-line no-console
-    process.exit(1);
+    program.subcommand = () => {
+      log.fatal({ command }, 'Unknown command');
+      process.exit(1);
+    };
   });
 
 program.parse(process.argv);
+
+if (!program.subcommand) {
+  program.help();
+  process.exit(1);
+}
+
+initLogger(_.pick(program, ['bunyanFormat', 'loglevel']));
+
+program.subcommand()
+  .then(() => log.trace('done'))
+  .catch(err => log.fatal({ err }, 'Uncaught exception'));
