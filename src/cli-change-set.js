@@ -5,15 +5,19 @@ function changesetList() {
 }
 
 function changesetShow(id) {
-  throw new Error('TODO');
+  throw new Error('TODO', id);
 }
 
 function changesetApply(id) {
-  throw new Error('TODO');
+  throw new Error('TODO', id);
 }
 
 function changesetCreate(stackFile) {
-  throw new Error('TODO');
+  throw new Error('TODO', stackFile);
+}
+
+function changesetDiff(stackFile) {
+  throw new Error('TODO', stackFile);
 }
 
 export default function (program) {
@@ -23,7 +27,8 @@ export default function (program) {
     .option('--list', 'List change sets')
     .option('--show [change-set-id]', 'Show a change set contents')
     .option('--apply [change-set-id]', 'Apply a change set')
-    .option('--create [file]', 'Create a change set')
+    .option('--create [file]', 'Create a change set for a stack')
+    .option('--diff [file]', 'Diff a ')
     .action(options => {
       // eslint-disable no-param-reassign
       if (options.list) {
@@ -43,6 +48,11 @@ export default function (program) {
 
       if (options.create) {
         options.parent.subcommand = changesetCreate.bind(null, options.create);
+        return;
+      }
+
+      if (options.diff) {
+        options.parent.subcommand = changesetDiff.bind(null, options.diff);
         return;
       }
 

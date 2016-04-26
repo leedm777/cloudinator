@@ -2,33 +2,31 @@
 
 import AWS from 'aws-sdk';
 
-import { log } from './log';
-import { loadFile } from './loader';
-
+import { promCall } from './promCall';
 import { UserError } from './errors';
+import { loadFile } from './loader';
+import { log } from './log';
 
 const cfn = new AWS.CloudFormation({
   apiVersion: '2010-05-15',
   region: 'us-east-1',
 });
 
-
 async function validate({ template }) {
   if (!template) {
     throw new UserError('Missing argument --template');
   }
 
-  const content = JSON.stringify(loadFile(template));
+  let content;
+  try {
+    content = JSON.stringify(loadFile(template));
+  } catch (err) {
+    throw new UserError(err.message);
+  }
 
-  await new Promise((resole, reject) => {
-    cfn.validateTemplate({ TemplateBody: content }, (err/* , data*/) => {
-      if (err) {
-        reject(new UserError(err.message));
-        return;
-      }
-      log.info({ template }, 'Okay');
-    });
-  });
+  await promCall(cfn.validateTemplate, cfn, { TemplateBody: content });
+  // nothing much to do with the results
+  log.info({ template }, 'Okay');
 }
 
 export default function (program) {

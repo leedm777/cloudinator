@@ -4,10 +4,11 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 
 import { log } from './log';
+import { UserError } from './errors';
 
 function loadJs(file) {
   file = path.relative(__dirname, file);
-  
+
   if (!file.match(/\.?\.?\//)) {
     file = `./${file}`;
   }
@@ -24,7 +25,8 @@ function loadYaml(file) {
 }
 
 export function loadFile(file) {
-  switch (path.extname(file)) {
+  const ext = path.extname(file);
+  switch (ext) {
     case '.js':
     case '.json':
       return loadJs(file);
@@ -32,6 +34,6 @@ export function loadFile(file) {
     case '.yml':
       return loadYaml(file);
     default:
-      throw new TypeError('Unrecognized file type');
+      throw new UserError(`Unrecognized file type: ${ext}`);
   }
 }

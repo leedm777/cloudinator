@@ -8,13 +8,17 @@ import { loadFile } from '../src/loader';
 describe('loader', () => {
   const expected = {
     Parameters: {
-      Name: 'imageId',
-      Description: 'The AMI to launch',
+      imageId: {
+        Type: 'String',
+        Description: 'The AMI to launch',
+      },
     },
     Resources: {
-      Type: 'AWS::EC2::Instance',
-      Properties: {
-        ImageId: { Ref: 'imageId' },
+      someInstance: {
+        Type: 'AWS::EC2::Instance',
+        Properties: {
+          ImageId: { Ref: 'imageId' },
+        },
       },
     },
   };

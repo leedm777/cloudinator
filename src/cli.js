@@ -15,7 +15,7 @@ const { version } = require('../package.json');
 
 program.version(version)
   .option('-b --bunyan-format [mode]', 'Parses and displays messages in bunyan format', 'short')
-  .option('   --loglevel [level]', 'Sets log level; defaults to info', 'info');
+  .option('   --log-level [level]', 'Sets log level; defaults to info', 'info');
 
 apply(program);
 changeSet(program);
@@ -36,7 +36,7 @@ if (!program.subcommand) {
   process.exit(1);
 }
 
-initLogger(_.pick(program, ['bunyanFormat', 'loglevel']));
+initLogger(_.pick(program, ['bunyanFormat', 'logLevel']));
 
 new Promise(resolve => resolve(program.subcommand()))
   .then(() => log.trace('done'))
@@ -44,7 +44,7 @@ new Promise(resolve => resolve(program.subcommand()))
     if (err instanceof UserError) {
       log.fatal(err.message);
     } else {
-      log.fatal({ err }, 'Uncaught exception')
+      log.fatal({ err }, 'Uncaught exception');
     }
 
     process.exit(1);

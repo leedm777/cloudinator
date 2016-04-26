@@ -7,11 +7,11 @@ const { name } = require('../package.json');
 
 export let log;
 
-export function initLogger({ bunyanFormat, loglevel }) {
+export function initLogger({ bunyanFormat, logLevel }) {
   log = bunyan.createLogger({
     name,
     serializers: bunyan.stdSerializers,
-    level: loglevel,
+    level: logLevel,
     stream: bformat({
       outputMode: bunyanFormat,
       color: process.stdout.isTTY,
