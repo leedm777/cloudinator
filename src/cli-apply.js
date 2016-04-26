@@ -1,9 +1,9 @@
 // Copyright (c) 2016, David M. Lee, II
 
-import _ from 'lodash';
-import async from 'async';
-import { diff } from 'deep-diff';
 import AWS from 'aws-sdk';
+import _ from 'lodash';
+import path from 'path';
+import { diff as deepDiff } from 'deep-diff';
 
 import { UserError } from './errors';
 import { loadFile } from './loader';
@@ -67,6 +67,21 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     }
   });
 
+  const getTemplate = async stackName => {
+    log.debug({ stackName }, 'Getting template');
+    try {
+      const data = await promCall(cfn.getTemplate, cfn, { StackName: stackName });
+      return JSON.parse(_.get(data, 'TemplateBody'));
+    } catch (err) {
+      // validation errors are when the stack isn't found; otherwise rethrow
+      if (_.get(err, 'code') === 'ValidationError') {
+        return null;
+      }
+
+      throw err;
+    }
+  };
+
   const appliedStacks = _.mapValues(only, async (stack, stackName) => {
     let currentStack = describeStack(stackName);
 
@@ -96,15 +111,21 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     // wait until we see if the current stack exists
     currentStack = await currentStack;
 
+    if (_.isString(stack.template)) {
+      stack.template = loadFile(stack.template, path.dirname(stacksFile));
+    }
+
     if (diff) {
-      const currentTemplateBody = await promCall(cfn.getTemplate, cfn, { StackName: stackName });
-      var differences = diff({
-        parameters: currentStack.Parameters,
+      log.debug({ stackName }, 'getting current template');
+      const currentTemplateBody = await getTemplate(stackName);
+      const differences = deepDiff({
+        parameters: _.get(currentStack, 'Parameters'),
         template: currentTemplateBody,
       }, {
         parameters,
         template: stack.template,
       });
+      console.log(JSON.stringify(differences.map(x => _.pick(x, ['kind', 'path'])), null, 2));
       console.log(JSON.stringify(differences, null, 2));
       return null;
     }
@@ -132,16 +153,31 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     });
   });
 
-  async.parallel(_.map(only, stackName => done => {
-    cfn.getTemplate({ StackName: stackName }, (err, res) => {
-      if (_.get(err, 'code') === 'ValidationError') {
-        // ValidationError == stack does not exist
-        done(null, { [stackName]: null });
-        return;
-      }
-      done(err, _.get(res, { [stackName]: 'TemplateBody' }));
+  let failedStacks = 0;
+
+  await Promise.all(_.map(appliedStacks, (application, stackName) => {
+    return application.then(() => {
+      log.info({ stackName }, 'Changes applied to stack');
+    }, err => {
+      ++failedStacks;
+      log.error({ stackName, err }, 'Error applying stack');
     });
-  }), console.error);
+  }));
+
+  if (failedStacks !== 0) {
+    throw new UserError(`Failed to apply ${failedStacks} stacks`);
+  }
+
+  // async.parallel(_.map(only, stackName => done => {
+  //   cfn.getTemplate({ StackName: stackName }, (err, res) => {
+  //     if (_.get(err, 'code') === 'ValidationError') {
+  //       // ValidationError == stack does not exist
+  //       done(null, { [stackName]: null });
+  //       return;
+  //     }
+  //     done(err, _.get(res, { [stackName]: 'TemplateBody' }));
+  //   });
+  // }), console.error);
 }
 
 export default function (program) {
