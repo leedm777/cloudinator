@@ -6,7 +6,7 @@ import path from 'path';
 import { diff as deepDiff } from 'deep-diff';
 
 import { UserError } from './errors';
-import { loadFile } from './loader';
+import { loadStacks } from './loader';
 import { log } from './log';
 import { promCall } from './promCall';
 
@@ -15,17 +15,19 @@ const cfn = new AWS.CloudFormation({
   region: 'us-east-1',
 });
 
-/**
- *
- * @param awsOutput
- */
 function mapOutputs(awsOutput) {
-  _.reduce(awsOutput, (acc, { OutputKey, OutputValue }) => {
+  return _.reduce(awsOutput, (acc, { OutputKey, OutputValue }) => {
     acc[OutputKey] = OutputValue;
     return acc;
   }, {});
 }
 
+function mapParameters(awsParameters) {
+  return _.reduce(awsParameters, (acc, { ParameterKey, ParameterValue }) => {
+    acc[ParameterKey] =  ParameterValue;
+    return acc;
+  }, {})
+}
 function objectToKVArray(obj) {
   return _.map(obj, (v, k) => ({ Key: k, Value: v }));
 }
@@ -35,7 +37,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     throw new UserError('Missing --stacks');
   }
 
-  const { config, stacks } = loadFile(stacksFile);
+  const { config, stacks } = loadStacks(stacksFile);
 
   if (!stacks || !_.isObject(stacks)) {
     throw new UserError(`Expected ${stacks} to have \`stacks\` object`);
@@ -108,26 +110,33 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     // finally params set in the stack itself
     parameters = _.assign({}, parameters, stack.parameters);
 
+    // and remove anything extraneous
+    const validParams = _.intersection(_.keys(parameters), _.keys(_.get(stack, 'template.Parameters', {})));
+    parameters = _.pick(parameters, validParams);
+
     // wait until we see if the current stack exists
     currentStack = await currentStack;
 
-    if (_.isString(stack.template)) {
-      stack.template = loadFile(stack.template, path.dirname(stacksFile));
+    log.debug({ stackName }, 'getting current template');
+    const currentTemplateBody = await getTemplate(stackName);
+    const currentParameters = mapParameters(_.get(currentStack, 'Parameters', []));
+    const differences = deepDiff({
+      parameters: currentParameters,
+      template: currentTemplateBody,
+    }, {
+      parameters,
+      template: stack.template,
+    });
+
+    if (differences) {
+      log.info({ differences, stackName }, 'Stack diff');
+    } else {
+      log.info({ stackName }, 'No changes');
+      return currentStack;
     }
 
     if (diff) {
-      log.debug({ stackName }, 'getting current template');
-      const currentTemplateBody = await getTemplate(stackName);
-      const differences = deepDiff({
-        parameters: _.get(currentStack, 'Parameters'),
-        template: currentTemplateBody,
-      }, {
-        parameters,
-        template: stack.template,
-      });
-      console.log(JSON.stringify(differences.map(x => _.pick(x, ['kind', 'path'])), null, 2));
-      console.log(JSON.stringify(differences, null, 2));
-      return null;
+      return currentStack;
     }
 
     log.fatal('Bailing before doing anything real');
@@ -135,29 +144,30 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
 
     if (currentStack) {
       log.info({ stackName }, 'Updating stack');
-      return promCall(cfn.updateStack, cfn, {
+      await promCall(cfn.updateStack, cfn, {
         Parameters: parameters,
         StackPolicyBody: stack.policy,
         TemplateBody: loadFile(stack.template),
         Tags: objectToKVArray(stack.tags),
       });
+      log.info({ stackName }, 'Updated stack');
     }
 
     // creating stack
     log.info({ stackName }, 'Creating stack');
-    return promCall(cfn.createStack, cfn, {
+    await promCall(cfn.createStack, cfn, {
       Parameters: parameters,
       StackPolicyBody: stack.policy,
       TemplateBody: loadFile(stack.template),
       Tags: objectToKVArray(stack.tags),
     });
+    log.info({ stackName }, 'Created stack');
   });
 
   let failedStacks = 0;
 
   await Promise.all(_.map(appliedStacks, (application, stackName) => {
     return application.then(() => {
-      log.info({ stackName }, 'Changes applied to stack');
     }, err => {
       ++failedStacks;
       log.error({ stackName, err }, 'Error applying stack');
@@ -167,17 +177,6 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
   if (failedStacks !== 0) {
     throw new UserError(`Failed to apply ${failedStacks} stacks`);
   }
-
-  // async.parallel(_.map(only, stackName => done => {
-  //   cfn.getTemplate({ StackName: stackName }, (err, res) => {
-  //     if (_.get(err, 'code') === 'ValidationError') {
-  //       // ValidationError == stack does not exist
-  //       done(null, { [stackName]: null });
-  //       return;
-  //     }
-  //     done(err, _.get(res, { [stackName]: 'TemplateBody' }));
-  //   });
-  // }), console.error);
 }
 
 export default function (program) {

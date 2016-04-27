@@ -2,6 +2,7 @@
 import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
+import _ from 'lodash'
 
 import { log } from './log';
 import { UserError } from './errors';
@@ -33,4 +34,34 @@ export function loadFile(file, basePath = process.cwd()) {
     default:
       throw new UserError(`Unrecognized file type: ${ext}`);
   }
+}
+
+export function loadStacks(file) {
+  const content = loadFile(file);
+
+  if (_.isString(_.get(content, 'config.defaults'))) {
+    content.config.defaults = loadFile(content.config.defaults);
+  }
+
+  // flatten parameter arrays
+  content.config.defaults =
+    _.mapValues(content.config.defaults, v => (_.isArray(v) ? v.join(',') : v));
+
+  content.stacks = _.mapValues(content.stacks, stack => {
+    if (_.isString(stack.template)) {
+      stack.template = loadFile(stack.template, path.dirname(file));
+    }
+
+    if (_.isString(stack.parameters)) {
+      stack.parameters = loadFile(stack.parameters, path.dirname(file));
+    }
+
+    // flatten parameter arrays
+    stack.parameters =
+      _.mapValues(stack.parameters, v => (_.isArray(v) ? v.join(',') : v));
+
+    return stack;
+  });
+
+  return content;
 }

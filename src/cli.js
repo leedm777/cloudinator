@@ -3,6 +3,7 @@ import 'babel-polyfill';
 
 import program from 'commander';
 import _ from 'lodash';
+import { install as installSourceMapSupport } from 'source-map-support';
 
 import apply from './cli-apply';
 import changeSet from './cli-change-set';
@@ -12,6 +13,8 @@ import { UserError } from './errors';
 import { initLogger, log } from './log';
 
 const { version } = require('../package.json');
+
+installSourceMapSupport();
 
 program.version(version)
   .option('-b --bunyan-format [mode]', 'Parses and displays messages in bunyan format', 'short')
@@ -39,7 +42,10 @@ if (!program.subcommand) {
 initLogger(_.pick(program, ['bunyanFormat', 'logLevel']));
 
 new Promise(resolve => resolve(program.subcommand()))
-  .then(() => log.trace('done'))
+  .then(() => {
+    log.debug('done');
+    process.exit(0);
+  })
   .catch(err => {
     if (err instanceof UserError) {
       log.fatal(err.message);
