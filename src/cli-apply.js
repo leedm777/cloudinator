@@ -2,7 +2,7 @@
 
 import AWS from 'aws-sdk';
 import _ from 'lodash';
-import path from 'path';
+import colors from 'colors/safe';
 import { diff as deepDiff } from 'deep-diff';
 
 import { UserError } from './errors';
@@ -24,9 +24,9 @@ function mapOutputs(awsOutput) {
 
 function mapParameters(awsParameters) {
   return _.reduce(awsParameters, (acc, { ParameterKey, ParameterValue }) => {
-    acc[ParameterKey] =  ParameterValue;
+    acc[ParameterKey] = ParameterValue;
     return acc;
-  }, {})
+  }, {});
 }
 function objectToKVArray(obj) {
   return _.map(obj, (v, k) => ({ Key: k, Value: v }));
@@ -85,6 +85,31 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
   };
 
   const appliedStacks = _.mapValues(only, async (stack, stackName) => {
+    function showDiff(differences) {
+      /* eslint-disable no-console */
+      console.log(`cfn-dsl --apply --diff --stacks ${stacksFile} --only ${stackName}`);
+      console.log(`--- aws ${stackName}`);
+      console.log(`+++ ${stacksFile} ${stackName}`);
+      differences.forEach(d => {
+        console.log(` ${d.path.join('.')}`);
+        if (d.lhs) {
+          console.log(colors.red(`-${JSON.stringify(d.lhs)}`));
+        }
+        if (d.rhs) {
+          console.log(colors.green(`+${JSON.stringify(d.rhs)}`));
+        }
+        if (d.kind === 'A') {
+          if (d.item.lhs) {
+            console.log(colors.red(`-[${d.index}] ${JSON.stringify(d.item.lhs)}`));
+          }
+          if (d.item.rhs) {
+            console.log(colors.green(`+[${d.index}] ${JSON.stringify(d.item.rhs)}`));
+          }
+        }
+      });
+      /* eslint-enable no-console */
+    }
+
     let currentStack = describeStack(stackName);
 
     // start with default parameters
@@ -111,7 +136,9 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     parameters = _.assign({}, parameters, stack.parameters);
 
     // and remove anything extraneous
-    const validParams = _.intersection(_.keys(parameters), _.keys(_.get(stack, 'template.Parameters', {})));
+    const validParams = _.intersection(
+      _.keys(parameters),
+      _.keys(_.get(stack, 'template.Parameters', {})));
     parameters = _.pick(parameters, validParams);
 
     // wait until we see if the current stack exists
@@ -129,7 +156,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     });
 
     if (differences) {
-      log.info({ differences, stackName }, 'Stack diff');
+      showDiff(differences, stackName);
     } else {
       log.info({ stackName }, 'No changes');
       return currentStack;
@@ -142,37 +169,39 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     log.fatal('Bailing before doing anything real');
     process.exit(1);
 
+    let newStack;
     if (currentStack) {
       log.info({ stackName }, 'Updating stack');
-      await promCall(cfn.updateStack, cfn, {
+      newStack = await promCall(cfn.updateStack, cfn, {
         Parameters: parameters,
         StackPolicyBody: stack.policy,
-        TemplateBody: loadFile(stack.template),
+        TemplateBody: stack.template,
         Tags: objectToKVArray(stack.tags),
       });
       log.info({ stackName }, 'Updated stack');
+    } else {
+      // creating stack
+      log.info({ stackName }, 'Creating stack');
+      newStack = await promCall(cfn.createStack, cfn, {
+        Parameters: parameters,
+        StackPolicyBody: stack.policy,
+        TemplateBody: stack.template,
+        Tags: objectToKVArray(stack.tags),
+      });
+      log.info({ stackName }, 'Created stack');
     }
 
-    // creating stack
-    log.info({ stackName }, 'Creating stack');
-    await promCall(cfn.createStack, cfn, {
-      Parameters: parameters,
-      StackPolicyBody: stack.policy,
-      TemplateBody: loadFile(stack.template),
-      Tags: objectToKVArray(stack.tags),
-    });
-    log.info({ stackName }, 'Created stack');
+    return newStack;
   });
 
   let failedStacks = 0;
 
-  await Promise.all(_.map(appliedStacks, (application, stackName) => {
-    return application.then(() => {
+  await Promise.all(_.map(appliedStacks, (application, stackName) =>
+    application.then(() => {
     }, err => {
       ++failedStacks;
       log.error({ stackName, err }, 'Error applying stack');
-    });
-  }));
+    })));
 
   if (failedStacks !== 0) {
     throw new UserError(`Failed to apply ${failedStacks} stacks`);

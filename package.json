@@ -36,6 +36,7 @@
     "babel-polyfill": "^6.7.4",
     "bunyan": "^1.8.1",
     "bunyan-format": "^0.2.1",
+    "colors": "^1.1.2",
     "commander": "^2.9.0",
     "deep-diff": "^0.3.3",
     "js-yaml": "^3.6.0",

@@ -2,7 +2,7 @@
 import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
-import _ from 'lodash'
+import _ from 'lodash';
 
 import { log } from './log';
 import { UserError } from './errors';
