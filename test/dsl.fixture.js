@@ -35,3 +35,17 @@ export const functionSchema = {
     },
   },
 };
+
+export const mappingsSchema = {
+  "root-schema-object": {
+    "Mappings": {
+      "type": "Named-Array",
+      "required": false,
+      "description": "Mappings match a key to a corresponding set of named values. For example, if you want to set values based on a region, you can create a mapping that uses the region name as a key and contains the values you want to specify for each specific region.",
+      "default-child-schema": {
+        "type": "Json",
+        "required": true
+      }
+    }
+  }
+};

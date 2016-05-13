@@ -1,7 +1,7 @@
 import assert from 'assert';
 import _ from 'lodash';
 
-import { buildDSL } from '../src/dsl';
+import { buildDSL, buildTemplate } from '../src/dsl';
 import * as f from './dsl.fixture';
 
 describe.only('The dsl', () => {
@@ -67,6 +67,68 @@ describe.only('The dsl', () => {
         it('should render array parameters', () => {
           const actual = func(['some-string', 'something-else']);
           assert.deepEqual(actual, { [func.cfnName]: ['some-string', 'something-else'] });
+        });
+      });
+    });
+  });
+
+  describe('building templates', () => {
+    it('should have version number', () => {
+      const template = buildTemplate();
+      const actual = template.toJSON();
+      assert.deepEqual(actual, { AWSTemplateFormatVersion: '2010-09-09' });
+    });
+
+    it('should use given description', () => {
+      const template = buildTemplate({ description: 'I do things' });
+      const actual = template.toJSON();
+      assert.deepEqual(actual, {
+        AWSTemplateFormatVersion: '2010-09-09',
+        Description: 'I do things',
+      });
+    });
+
+    it('should use given metadata', () => {
+      const template = buildTemplate({ metadata: { meta: 'data' } });
+      const actual = template.toJSON();
+      assert.deepEqual(actual, {
+        AWSTemplateFormatVersion: '2010-09-09',
+        Metadata: { meta: 'data' },
+      });
+    });
+
+    describe('Mappings', () => {
+      const dsl = buildDSL(f.mappingsSchema);
+
+      it('should add mapping function to dsl', () => {
+        assert.ok(_.isFunction(dsl.mapping), 'Should have mapping function');
+      });
+
+      it('should add a mapping to the template', () => {
+        const template = buildTemplate();
+        template.add(dsl.mapping('someMapping', { mapping: 'data' }));
+
+        const actual = template.toJSON();
+        assert.deepEqual(actual, {
+          AWSTemplateFormatVersion: '2010-09-09',
+          Mappings: {
+            someMapping: { mapping: 'data' },
+          },
+        });
+      });
+
+      it('should add multiple mapping to the template', () => {
+        const template = buildTemplate();
+        template.add(dsl.mapping('someMapping', { mapping: 'data' }));
+        template.add(dsl.mapping('someOtherMapping', { moar: 'data' }));
+
+        const actual = template.toJSON();
+        assert.deepEqual(actual, {
+          AWSTemplateFormatVersion: '2010-09-09',
+          Mappings: {
+            someMapping: { mapping: 'data' },
+            someOtherMapping: { moar: 'data' },
+          },
         });
       });
     });
