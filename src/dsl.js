@@ -35,14 +35,23 @@ function buildSimpleObjectBuilder(objectSchema, name) {
   const childSchemaType = _.get(objectSchema, 'default-child-schema.type');
   switch (childSchemaType) {
     case 'Object':
-      break;
+      {
+        const build = (fieldName, props) => ({
+          // TODO: error checking on props
+          render() { return _.mapKeys(props, (v, k) => _.upperFirst(k)); },
+          add(template) { _.set(template, `${name}.${fieldName}`, this.render()); },
+        });
+
+        build.id = _.lowerFirst(name).replace(/s$/, '');
+        build.description = objectSchema.description;
+        return build;
+      }
     case 'Json':
       {
         const build = (fieldName, data) => ({
-          render: () => data,
-          add: template => _.set(template, `${name}.${fieldName}`, data),
+          add(template) { _.set(template, `${name}.${fieldName}`, data); },
         });
-        build.id = name.charAt(0).toLowerCase() + name.slice(1).replace(/s$/, '');
+        build.id = _.lowerFirst(name).replace(/s$/, '');
         build.description = objectSchema.description;
         return build;
       }

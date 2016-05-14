@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { buildDSL, buildTemplate } from '../src/dsl';
 import * as f from './dsl.fixture';
 
-describe.only('The dsl', () => {
+describe('The dsl', () => {
   describe('pseudo-parameters', () => {
     const dsl = buildDSL(f.pseudoParamsSchema);
     const uut = _.get(dsl, 'params.awsRegion');
@@ -128,6 +128,34 @@ describe.only('The dsl', () => {
           Mappings: {
             someMapping: { mapping: 'data' },
             someOtherMapping: { moar: 'data' },
+          },
+        });
+      });
+    });
+    describe('Parameters', () => {
+      const dsl = buildDSL(f.paramsSchema);
+
+      it('should add param function to dsl', () => {
+        assert.ok(_.isFunction(dsl.parameter), 'Should have param function');
+      });
+
+      it.only('should add a parameter to the template', () => {
+        const template = buildTemplate();
+        template.add(dsl.parameter('someParam', {
+          type: 'CommaDelimitedList',
+          default: 'default,value',
+          description: 'Some description',
+        }));
+
+        const actual = template.toJSON();
+        assert.deepEqual(actual, {
+          AWSTemplateFormatVersion: '2010-09-09',
+          Parameters: {
+            someParam: {
+              Type: 'CommaDelimitedList',
+              Default: 'default,value',
+              Description: 'Some description',
+            },
           },
         });
       });
