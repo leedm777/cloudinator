@@ -4,6 +4,7 @@ import assert from 'assert';
 import path from 'path';
 
 import { loadFile } from '../src/loader';
+import { UserError } from '../src/errors';
 
 describe('loader', () => {
   const expected = {
@@ -27,7 +28,7 @@ describe('loader', () => {
     it('should throw a type error', () => {
       assert.throws(() => {
         loadFile(path.join(__dirname, 'data', 'not-a-template.txt'));
-      }, TypeError);
+      }, UserError);
     });
   });
 

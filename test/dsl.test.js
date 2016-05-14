@@ -139,7 +139,7 @@ describe('The dsl', () => {
         assert.ok(_.isFunction(dsl.parameter), 'Should have param function');
       });
 
-      it.only('should add a parameter to the template', () => {
+      it('should add a parameter to the template', () => {
         const template = buildTemplate();
         template.add(dsl.parameter('someParam', {
           type: 'CommaDelimitedList',
