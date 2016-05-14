@@ -132,6 +132,7 @@ describe('The dsl', () => {
         });
       });
     });
+
     describe('Parameters', () => {
       const dsl = buildDSL(f.paramsSchema);
 
@@ -142,9 +143,9 @@ describe('The dsl', () => {
       it('should add a parameter to the template', () => {
         const template = buildTemplate();
         template.add(dsl.parameter('someParam', {
-          type: 'CommaDelimitedList',
-          default: 'default,value',
-          description: 'Some description',
+          Type: 'CommaDelimitedList',
+          Default: 'default,value',
+          Description: 'Some description',
         }));
 
         const actual = template.toJSON();
@@ -155,6 +156,38 @@ describe('The dsl', () => {
               Type: 'CommaDelimitedList',
               Default: 'default,value',
               Description: 'Some description',
+            },
+          },
+        });
+      });
+    });
+
+    describe('Resources', () => {
+      const dsl = buildDSL(f.resourcesSchema);
+      it('should add resource object to dsl', () => {
+        assert.ok(_.isObject(dsl.resource), 'Should have resource object');
+      });
+
+      it('should add a resource to a template', () => {
+        const template = buildTemplate();
+        template.add(new dsl.resource.EC2.Instance('some-instance', {
+          Type: 't2.micro',
+          Properties: {
+            ImageId: 'ami-12345',
+            EbsOptimized: false,
+          },
+        }));
+
+        const actual = template.toJSON();
+        assert.deepEqual(actual, {
+          AWSTemplateFormatVersion: '2010-09-09',
+          Resources: {
+            'some-instance': {
+              Type: 't2.micro',
+              Properties: {
+                ImageId: 'ami-12345',
+                EbsOptimized: false,
+              },
             },
           },
         });

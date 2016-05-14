@@ -27,8 +27,32 @@ function buildPseudoParam(paramSchema, name) {
   };
 }
 
-function buildComplexObjectBuilder(/* objectSchema, name */) {
-  throw new Error('TODO');
+function mapResourceName(name) {
+  let segments = name.split(/::/);
+  if (segments[0] === 'AWS') {
+    segments = segments.splice(1);
+  }
+  return segments.join('.');
+}
+
+function buildComplexObjectBuilder(objectSchema, name) {
+  const res = {
+    id: _.lowerFirst(name).replace(/s$/, ''),
+    description: objectSchema.description,
+  };
+
+  _.forEach(objectSchema['child-schemas'], (childSchema, childName) => {
+    childName = mapResourceName(childName);
+    const build = (fieldName, props) => ({
+      // TODO: error checking on props
+      render() { return props; },
+      add(template) { _.set(template, `${name}.${fieldName}`, this.render()); },
+    });
+    _.set(res, childName, build);
+  });
+
+
+  return res;
 }
 
 function buildSimpleObjectBuilder(objectSchema, name) {
@@ -38,7 +62,7 @@ function buildSimpleObjectBuilder(objectSchema, name) {
       {
         const build = (fieldName, props) => ({
           // TODO: error checking on props
-          render() { return _.mapKeys(props, (v, k) => _.upperFirst(k)); },
+          render() { return props; },
           add(template) { _.set(template, `${name}.${fieldName}`, this.render()); },
         });
 
