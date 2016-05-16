@@ -42,13 +42,28 @@ function buildComplexObjectBuilder(objectSchema, name) {
   };
 
   _.forEach(objectSchema['child-schemas'], (childSchema, childName) => {
-    childName = mapResourceName(childName);
-    const build = (fieldName, props) => ({
-      // TODO: error checking on props
-      render() { return props; },
-      add(template) { _.set(template, `${name}.${fieldName}`, this.render()); },
-    });
-    _.set(res, childName, build);
+    const jsName = mapResourceName(childName);
+    const build = (fieldName, props) => {
+      if (!_.isString(fieldName)) {
+        throw new TypeError('fieldName must be a string');
+      }
+
+      props = _.assign({}, props, { Type: childName });
+      return {
+        // TODO: error checking on props
+        render() {
+          return props;
+        },
+        add(template) {
+          if (_.has(template, `${name}.${fieldName}`)) {
+            throw new TypeError(`Template already has ${name}.${fieldName}`);
+          }
+          _.set(template, `${name}.${fieldName}`, this.render());
+          return { Ref: fieldName };
+        },
+      };
+    };
+    _.set(res, jsName, build);
   });
 
 
@@ -63,7 +78,10 @@ function buildSimpleObjectBuilder(objectSchema, name) {
         const build = (fieldName, props) => ({
           // TODO: error checking on props
           render() { return props; },
-          add(template) { _.set(template, `${name}.${fieldName}`, this.render()); },
+          add(template) {
+            _.set(template, `${name}.${fieldName}`, this.render());
+            return { Ref: fieldName };
+          },
         });
 
         build.id = _.lowerFirst(name).replace(/s$/, '');
@@ -73,7 +91,10 @@ function buildSimpleObjectBuilder(objectSchema, name) {
     case 'Json':
       {
         const build = (fieldName, data) => ({
-          add(template) { _.set(template, `${name}.${fieldName}`, data); },
+          add(template) {
+            _.set(template, `${name}.${fieldName}`, data);
+            return { Ref: fieldName };
+          },
         });
         build.id = _.lowerFirst(name).replace(/s$/, '');
         build.description = objectSchema.description;
@@ -117,7 +138,7 @@ export function buildDSL(schema) {
     .keyBy('id')
     .valueOf();
 
-  const builders = _(schema['root-schema-object'])
+  const builders = _(_.get(schema, 'root-schema-object.properties'))
     .map(buildSchemaBuilder)
     .filter(n => !!n)
     .keyBy('id')
@@ -126,15 +147,15 @@ export function buildDSL(schema) {
   return _.assign({}, builders, { fn, params });
 }
 
-export function buildTemplate({ description, metadata } = {}) {
+export function buildTemplate({ Description, Metadata } = {}) {
   const template = {
     AWSTemplateFormatVersion: '2010-09-09',
   };
-  if (_.isString(description)) {
-    template.Description = description;
+  if (_.isString(Description)) {
+    template.Description = Description;
   }
-  if (_.isObject(metadata)) {
-    template.Metadata = metadata;
+  if (_.isObject(Metadata)) {
+    template.Metadata = Metadata;
   }
 
   return {
@@ -146,4 +167,14 @@ export function buildTemplate({ description, metadata } = {}) {
       return obj.add(template);
     },
   };
+}
+
+/**
+ * Convert an object into an array of {Key: k, Value: v} objects.
+ *
+ * @param {object} obj Object to convert.
+ * @returns {Array} Array of {Key: k, Value: v} objects.
+ */
+export function obj2kv(obj) {
+  return _.map(obj, (v, k) => ({ Key: k, Value: v }));
 }
