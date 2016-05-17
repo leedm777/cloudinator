@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "bin": {
-    "cloudinator": "./bin/cloudinator.js"
-  },
+  "bin": "./bin/cloudinator.js",
   "scripts": {
     "build": "mkdir -p lib/ && babel --source-maps true --out-dir lib/ src/",
     "clean": "rm -rf lib/",

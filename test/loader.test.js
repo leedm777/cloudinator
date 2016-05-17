@@ -33,22 +33,22 @@ describe('loader', () => {
   });
 
   describe('.json files', () => {
-    it('should parse', () => {
-      const actual = loadFile(path.join(__dirname, 'data', 'template.json'));
+    it('should parse', async () => {
+      const actual = await loadFile(path.join(__dirname, 'data', 'template.json'));
       assert.deepStrictEqual(actual, expected);
     });
   });
 
   describe('.yaml files', () => {
-    it('should parse', () => {
-      const actual = loadFile(path.join(__dirname, 'data', 'template.yml'));
+    it('should parse', async () => {
+      const actual = await loadFile(path.join(__dirname, 'data', 'template.yml'));
       assert.deepStrictEqual(actual, expected);
     });
   });
 
   describe('.js files', () => {
-    it('should parse', () => {
-      const actual = loadFile(path.join(__dirname, 'data', 'template.js'));
+    it('should parse', async () => {
+      const actual = await loadFile(path.join(__dirname, 'data', 'template.js'));
       assert.deepStrictEqual(actual, expected);
     });
   });

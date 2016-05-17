@@ -19,7 +19,7 @@ async function validate({ template }) {
 
   let content;
   try {
-    content = JSON.stringify(loadFile(template));
+    content = JSON.stringify(await loadFile(template));
   } catch (err) {
     throw new UserError(err.message);
   }

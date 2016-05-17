@@ -18,7 +18,8 @@ installSourceMapSupport();
 
 program.version(version)
   .option('-b --bunyan-format [mode]', 'Parses and displays messages in bunyan format', 'short')
-  .option('   --log-level [level]', 'Sets log level; defaults to info', 'info');
+  .option('   --log-level [level]', 'Sets log level; defaults to info', 'info')
+  .option('   --require [module]', 'Requires the given module', m => require(m));
 
 apply(program);
 changeSet(program);

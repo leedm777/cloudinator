@@ -20,48 +20,78 @@ function loadYaml(file) {
   });
 }
 
+function resolve(content) {
+  return Promise.resolve(content)
+    .then(c => {
+      if (_.isFunction(c)) {
+        log.debug('calling function');
+        return resolve(c());
+      }
+
+      if (_.has(c, 'default')) {
+        log.debug('resolving default');
+        return resolve(c.default);
+      }
+
+      return c;
+    }).then(c => {
+      console.log(JSON.stringify(c, null, 2));
+      return c;
+    });
+}
+
 export function loadFile(file, basePath = process.cwd()) {
   file = path.resolve(basePath, file);
 
   const ext = path.extname(file);
+  let content;
   switch (ext) {
     case '.js':
     case '.json':
-      return loadJs(file);
+      content = loadJs(file);
+      break;
     case '.yaml':
     case '.yml':
-      return loadYaml(file);
+      content = loadYaml(file);
+      break;
     default:
       throw new UserError(`Unrecognized file type: ${ext}`);
   }
+
+  return resolve(content);
 }
 
-export function loadStacks(file) {
-  const content = loadFile(file);
+export async function loadStacks(file) {
+  const content = await loadFile(file);
 
-  if (_.isString(_.get(content, 'config.defaults'))) {
-    content.config.defaults = loadFile(content.config.defaults);
+  const defaults = _.get(content, 'config.defaults');
+  if (!_.isEmpty(defaults)) {
+    if (_.isString(defaults)) {
+      content.config.defaults = await loadFile(content.config.defaults);
+    }
+    // flatten parameter arrays
+    content.config.defaults =
+      _.mapValues(content.config.defaults, v => (_.isArray(v) ? v.join(',') : v));
   }
 
-  // flatten parameter arrays
-  content.config.defaults =
-    _.mapValues(content.config.defaults, v => (_.isArray(v) ? v.join(',') : v));
+  for (const stackName in content.stacks) {
+    if (Object.hasOwnProperty(content.stacks, stackName)) {
+      continue;
+    }
 
-  content.stacks = _.mapValues(content.stacks, stack => {
+    const stack = content.stacks[stackName];
     if (_.isString(stack.template)) {
-      stack.template = loadFile(stack.template, path.dirname(file));
+      stack.template = await loadFile(stack.template, path.dirname(file));
     }
 
     if (_.isString(stack.parameters)) {
-      stack.parameters = loadFile(stack.parameters, path.dirname(file));
+      stack.parameters = await loadFile(stack.parameters, path.dirname(file));
     }
 
     // flatten parameter arrays
     stack.parameters =
       _.mapValues(stack.parameters, v => (_.isArray(v) ? v.join(',') : v));
-
-    return stack;
-  });
+  }
 
   return content;
 }

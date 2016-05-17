@@ -201,7 +201,7 @@ describe('The dsl', () => {
   describe('integration testing', () => {
     let dsl;
 
-    before(async() => {
+    before(async () => {
       const schema = await getSchema({
         file: path.resolve(__dirname, '..', 'CloudFormationV1.schema.json'),
       });

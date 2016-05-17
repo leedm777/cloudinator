@@ -37,7 +37,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     throw new UserError('Missing --stacks');
   }
 
-  const { config, stacks } = loadStacks(stacksFile);
+  const { config, stacks } = await loadStacks(stacksFile);
 
   if (!stacks || !_.isObject(stacks)) {
     throw new UserError(`Expected ${stacks} to have \`stacks\` object`);
@@ -55,7 +55,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
   only = _.pick(stacks, only);
 
   const describeStack = _.memoize(async stackName => {
-    log.debug({ stackName }, 'Describing stack');
+    log.debug({ stackName }, 'describing stack');
     try {
       const data = await promCall(cfn.describeStacks, cfn, { StackName: stackName });
       return _.get(data, 'Stacks[0]');
@@ -70,7 +70,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
   });
 
   const getTemplate = async stackName => {
-    log.debug({ stackName }, 'Getting template');
+    log.debug({ stackName }, 'getting template');
     try {
       const data = await promCall(cfn.getTemplate, cfn, { StackName: stackName });
       return JSON.parse(_.get(data, 'TemplateBody'));
