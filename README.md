@@ -1,10 +1,9 @@
-# cfn-dsl
+# cloudinator
 
-CloudFormation DSL for writing templates without insanity, plus tooling for
-managing stacks.
+CloudFormation tooling and DSL for writing templates without insanity.
 
 ```JavaScript
-import { Template } from 'cfn-dsl';
+import { Template } from 'cloudinator';
 
 export default Template.build(template => {
   const imageId = template.addParamater({

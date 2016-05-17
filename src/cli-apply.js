@@ -87,7 +87,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
   const appliedStacks = _.mapValues(only, async (stack, stackName) => {
     function showDiff(differences) {
       /* eslint-disable no-console */
-      console.log(`cfn-dsl --apply --diff --stacks ${stacksFile} --only ${stackName}`);
+      console.log(`cloudinator --apply --diff --stacks ${stacksFile} --only ${stackName}`);
       console.log(`--- aws ${stackName}`);
       console.log(`+++ ${stacksFile} ${stackName}`);
       differences.forEach(d => {

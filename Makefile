@@ -2,5 +2,5 @@ all: build
 .PHONY: all
 
 build:
-	docker build -t cfn-dsl .
+	docker build -t cloudinator .
 .PHONY: build
