@@ -29,6 +29,7 @@
     "mocha": "^2.4.5"
   },
   "dependencies": {
+    "appdirs": "^1.0.0",
     "async": "^2.0.0-rc.3",
     "aws-sdk": "^2.3.5",
     "babel-polyfill": "^6.7.4",
