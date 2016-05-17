@@ -25,10 +25,13 @@ describe('loader', () => {
   };
 
   describe('.txt files', () => {
-    it('should throw a type error', () => {
-      assert.throws(() => {
-        loadFile(path.join(__dirname, 'data', 'not-a-template.txt'));
-      }, UserError);
+    it('should reject with a type error', async () => {
+      try {
+        await loadFile(path.join(__dirname, 'data', 'not-a-template.txt'));
+        assert.fail('should not have loaded');
+      } catch (err) {
+        assert.ok(err instanceof UserError);
+      }
     });
   });
 
