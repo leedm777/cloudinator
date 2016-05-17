@@ -26,7 +26,6 @@ export async function getSchema({ url = URL, file } = {}) {
   } else {
     let cache = null;
     try {
-      log.debug({ cacheFile }, 'loading cache');
       cache = require(cacheFile);
     } catch (ignored) {
       // default empty cache

@@ -17,5 +17,7 @@ export async function startTemplate(opts, fn) {
   const dsl = buildDSL(schema);
   const template = buildTemplate(opts.template);
 
-  return fn({ template, dsl });
+  await fn({ template, dsl });
+
+  return template;
 }

@@ -8,12 +8,10 @@ import { log } from './log';
 import { UserError } from './errors';
 
 function loadJs(file) {
-  log.debug({ file }, 'loading JavaScript/JSON');
   return require(file);
 }
 
 function loadYaml(file) {
-  log.debug({ file }, 'loading yaml');
   const content = fs.readFileSync(file, 'utf8');
   return yaml.safeLoad(content, {
     filename: file,
@@ -24,23 +22,19 @@ function resolve(content) {
   return Promise.resolve(content)
     .then(c => {
       if (_.isFunction(c)) {
-        log.debug('calling function');
         return resolve(c());
       }
 
       if (_.has(c, 'default')) {
-        log.debug('resolving default');
         return resolve(c.default);
       }
 
       return c;
-    }).then(c => {
-      console.log(JSON.stringify(c, null, 2));
-      return c;
     });
 }
 
-export function loadFile(file, basePath = process.cwd()) {
+export async function loadFile(file, basePath = process.cwd()) {
+  log.debug({ file }, 'loading');
   file = path.resolve(basePath, file);
 
   const ext = path.extname(file);
@@ -58,7 +52,11 @@ export function loadFile(file, basePath = process.cwd()) {
       throw new UserError(`Unrecognized file type: ${ext}`);
   }
 
-  return resolve(content);
+  log.debug({ file }, 'resolving');
+  content = await resolve(content);
+  log.debug({ file, content }, 'loaded');
+
+  return content;
 }
 
 export async function loadStacks(file) {
@@ -75,7 +73,7 @@ export async function loadStacks(file) {
   }
 
   for (const stackName in content.stacks) {
-    if (Object.hasOwnProperty(content.stacks, stackName)) {
+    if (!Object.hasOwnProperty.call(content.stacks, stackName)) {
       continue;
     }
 
