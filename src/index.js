@@ -3,9 +3,9 @@ import 'babel-polyfill';
 import _ from 'lodash';
 
 import { getSchema } from './schema';
-import { buildDSL, buildTemplate } from './dsl';
+import { TemplateBuilder } from './template-builder';
 
-export { obj2kv } from './dsl';
+export { obj2kv } from './template-builder';
 
 export async function startTemplate(opts, fn) {
   if (!fn && _.isFunction(opts)) {
@@ -14,10 +14,9 @@ export async function startTemplate(opts, fn) {
   }
 
   const schema = await getSchema({});
-  const dsl = buildDSL(schema);
-  const template = buildTemplate(opts.template);
+  const builder = new TemplateBuilder({ schema });
 
-  await fn({ template, dsl });
+  await fn({ builder });
 
-  return template;
+  return builder.template;
 }
