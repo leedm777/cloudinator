@@ -54,7 +54,7 @@ export async function loadFile(file, basePath = process.cwd()) {
 
   log.debug({ file }, 'resolving');
   content = await resolve(content);
-  log.debug({ file, content }, 'loaded');
+  log.trace({ file, content }, 'loaded');
 
   return content;
 }
