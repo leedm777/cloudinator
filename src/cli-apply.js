@@ -31,6 +31,126 @@ function objectToKVArray(obj) {
   return _.map(obj, (v, k) => ({ Key: k, Value: v }));
 }
 
+async function waitFor({ stackName }) {
+  log.debug({ stackName }, 'Getting initial events');
+  const { StackEvents: initialEvents } =
+    await cfn.describeStackEvents({ StackName: stackName }).promise();
+  let lastEventId = _.get(initialEvents, 'StackEvents[0].EventId');
+
+  return new Promise((resolve, reject) => {
+    async function poll() {
+      log.debug({ stackName }, 'Describing stack');
+      // capture stack status prior to events, otherwise we might miss the last few events
+      const { StackEvents: [stack] } =
+        await cfn.describeStacks({ StackName: stackName }).promise();
+
+      log.debug({ stackName }, 'Describing stack events');
+      let { StackEvents: stackEvents } =
+        await cfn.describeStackEvents({ StackName: stackName }).promise();
+      stackEvents = _.takeWhile(stackEvents, e => e.id !== lastEventId);
+
+      if (!_.isEmpty(stackEvents)) {
+        _.forEach(stackEvents, stackEvent => log.info({ stackEvent }));
+        lastEventId = stackEvents[0].EventId;
+      }
+
+      log.debug({ stackName, status: stack.StackStatus, reason: stack.StackStatusReason },
+        'Processing status');
+      switch (stack.StackStatus) {
+        case 'CREATE_IN_PROGRESS':
+        case 'ROLLBACK_IN_PROGRESS':
+        case 'DELETE_IN_PROGRESS':
+        case 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS':
+        case 'UPDATE_IN_PROGRESS':
+        case 'UPDATE_ROLLBACK_IN_PROGRESS':
+        case 'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS':
+          break;
+
+        case 'CREATE_COMPLETE':
+        case 'ROLLBACK_COMPLETE':
+        case 'DELETE_COMPLETE':
+        case 'UPDATE_COMPLETE':
+        case 'UPDATE_ROLLBACK_COMPLETE':
+          resolve(stack);
+          return;
+
+        case 'CREATE_FAILED':
+        case 'ROLLBACK_FAILED':
+        case 'DELETE_FAILED':
+        case 'UPDATE_ROLLBACK_FAILED':
+          reject(new Error(`Stack failed: ${stack.StackStatusReason}`));
+          return;
+
+        default:
+          reject(
+            new Error(`Unknown status: ${stack.StackStatus}: ${stack.StackStatusReason}`));
+          return;
+      }
+
+      // not done yet; try again later
+      setTimeout(poll, 5000);
+    }
+
+    // kick off the polling
+    setTimeout(poll, 5000);
+  });
+}
+
+const describeStack = _.memoize(async stackName => {
+  log.debug({ stackName }, 'describing stack');
+  try {
+    const data = await cfn.describeStacks({ StackName: stackName }).promise();
+    return _.get(data, 'Stacks[0]');
+  } catch (err) {
+    // validation errors are when the stack isn't found; otherwise rethrow
+    if (_.get(err, 'code') === 'ValidationError') {
+      return null;
+    }
+
+    throw err;
+  }
+});
+
+async function getTemplate(stackName) {
+  log.debug({ stackName }, 'getting template');
+  try {
+    const data = await cfn.getTemplate({ StackName: stackName }).promise();
+    return JSON.parse(_.get(data, 'TemplateBody'));
+  } catch (err) {
+    // validation errors are when the stack isn't found; otherwise rethrow
+    if (_.get(err, 'code') === 'ValidationError') {
+      return null;
+    }
+
+    throw err;
+  }
+}
+
+function showDiff({ differences, stacksFile, stackName }) {
+  /* eslint-disable no-console */
+  console.log(`cloudinator --apply --diff --stacks ${stacksFile} --only ${stackName}`);
+  console.log(`--- aws ${stackName}`);
+  console.log(`+++ ${stacksFile} ${stackName}`);
+  differences.forEach(d => {
+    console.log(` ${d.path.join('.')}`);
+    if (d.lhs) {
+      console.log(colors.red(`-${JSON.stringify(d.lhs)}`));
+    }
+    if (d.rhs) {
+      console.log(colors.green(`+${JSON.stringify(d.rhs)}`));
+    }
+    if (d.kind === 'A') {
+      if (d.item.lhs) {
+        console.log(colors.red(`-[${d.index}] ${JSON.stringify(d.item.lhs)}`));
+      }
+      if (d.item.rhs) {
+        console.log(colors.green(`+[${d.index}] ${JSON.stringify(d.item.rhs)}`));
+      }
+    }
+  });
+  /* eslint-enable no-console */
+}
+
 async function applyStack({ stacks: stacksFile, only, diff }) {
   if (!stacksFile) {
     throw new UserError('Missing --stacks');
@@ -53,62 +173,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
 
   only = _.pick(stacks, only);
 
-  const describeStack = _.memoize(async stackName => {
-    log.debug({ stackName }, 'describing stack');
-    try {
-      const data = await cfn.describeStacks({ StackName: stackName }).promise();
-      return _.get(data, 'Stacks[0]');
-    } catch (err) {
-      // validation errors are when the stack isn't found; otherwise rethrow
-      if (_.get(err, 'code') === 'ValidationError') {
-        return null;
-      }
-
-      throw err;
-    }
-  });
-
-  const getTemplate = async stackName => {
-    log.debug({ stackName }, 'getting template');
-    try {
-      const data = await cfn.getTemplate({ StackName: stackName }).promise();
-      return JSON.parse(_.get(data, 'TemplateBody'));
-    } catch (err) {
-      // validation errors are when the stack isn't found; otherwise rethrow
-      if (_.get(err, 'code') === 'ValidationError') {
-        return null;
-      }
-
-      throw err;
-    }
-  };
-
-  const appliedStacks = _.mapValues(only, async (stack, stackName) => {
-    function showDiff(differences) {
-      /* eslint-disable no-console */
-      console.log(`cloudinator --apply --diff --stacks ${stacksFile} --only ${stackName}`);
-      console.log(`--- aws ${stackName}`);
-      console.log(`+++ ${stacksFile} ${stackName}`);
-      differences.forEach(d => {
-        console.log(` ${d.path.join('.')}`);
-        if (d.lhs) {
-          console.log(colors.red(`-${JSON.stringify(d.lhs)}`));
-        }
-        if (d.rhs) {
-          console.log(colors.green(`+${JSON.stringify(d.rhs)}`));
-        }
-        if (d.kind === 'A') {
-          if (d.item.lhs) {
-            console.log(colors.red(`-[${d.index}] ${JSON.stringify(d.item.lhs)}`));
-          }
-          if (d.item.rhs) {
-            console.log(colors.green(`+[${d.index}] ${JSON.stringify(d.item.rhs)}`));
-          }
-        }
-      });
-      /* eslint-enable no-console */
-    }
-
+  const appliedStacks = _.mapValues(only, async(stack, stackName) => {
     let currentStack = describeStack(stackName);
 
     // start with default parameters
@@ -120,7 +185,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
         stack.dependsOn = [stack.dependsOn];
       }
 
-      parameters = _.reduce(stack.dependsOn, async (p, dependent) => {
+      parameters = _.reduce(stack.dependsOn, async(p, dependent) => {
         const description = await (_.has(appliedStacks, dependent) ?
           appliedStacks[dependent] :
           describeStack(dependent));
@@ -140,8 +205,19 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
       _.keys(_.get(stack, 'template.Parameters', {})));
     parameters = _.pick(parameters, validParams);
 
+    // now put it in AWS format:
+    parameters = _.map(parameters, (v, k) => ({ ParameterKey: k, ParameterValue: v }));
+
     // wait until we see if the current stack exists
     currentStack = await currentStack;
+
+    if (currentStack.StackStatus === 'ROLLBACK_COMPLETE') {
+      log.info({ stackName }, 'Deleting failed stack');
+      await cfn.deleteStack({
+        StackName: stackName,
+      }).promise();
+      currentStack = null;
+    }
 
     log.debug({ stackName }, 'getting current template');
     const currentTemplateBody = await getTemplate(stackName);
@@ -155,7 +231,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     });
 
     if (differences) {
-      showDiff(differences, stackName);
+      showDiff({ differences, stacksFile, stackName });
     } else {
       log.info({ stackName }, 'No changes');
       return currentStack;
@@ -165,29 +241,34 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
       return currentStack;
     }
 
-    log.fatal('Bailing before doing anything real');
-    process.exit(1);
-
     let newStack;
     if (currentStack) {
       log.info({ stackName }, 'Updating stack');
-      newStack = await cfn.updateStack({
+      const update = await cfn.updateStack({
+        StackName: stackName,
         Parameters: parameters,
         StackPolicyBody: stack.policy,
-        TemplateBody: stack.template,
+        TemplateBody: JSON.stringify(stack.template),
         Tags: objectToKVArray(stack.tags),
       }).promise();
-      log.info({ stackName }, 'Updated stack');
+
+      log.info({ stackName, update }, 'Stack update started');
+      newStack = await waitFor({ stackName, state: 'stackUpdateComplete' });
+      log.info({ stackName, updatedStack: newStack }, 'Stack update complete');
     } else {
       // creating stack
       log.info({ stackName }, 'Creating stack');
-      newStack = await cfn.createStack({
+      const create = await cfn.createStack({
+        StackName: stackName,
         Parameters: parameters,
         StackPolicyBody: stack.policy,
-        TemplateBody: stack.template,
+        TemplateBody: JSON.stringify(stack.template),
         Tags: objectToKVArray(stack.tags),
       }).promise();
-      log.info({ stackName }, 'Created stack');
+
+      log.info({ stackName, create }, 'Create stack started');
+      newStack = await waitFor({ stackName, state: 'stackUpdateComplete' });
+      log.info({ stackName, updatedStack: newStack }, 'Stack create complete');
     }
 
     return newStack;
