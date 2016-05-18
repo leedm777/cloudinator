@@ -58,6 +58,13 @@ export class TemplateBuilder {
         // return a map of references
         return _.mapValues(obj, (v, k) => ({ Ref: k }));
       };
+
+      const singleMethodName = methodName.replace(/s$/, '');
+      this[singleMethodName] = (objName, obj) => {
+        validate(objectSchema, obj);
+        _.set(this.template, `${name}.${objName}`, obj);
+        return { Ref: objName };
+      };
     };
 
     _(_.get(schema, 'root-schema-object.properties'))

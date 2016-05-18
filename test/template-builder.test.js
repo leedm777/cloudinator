@@ -299,31 +299,25 @@ describe('The dsl', () => {
         });
 
         const publicSubnets = _.range(0, SubnetCount).map(num => {
-          const publicSubnetName = `publicSubnet${num}`;
-          const { [publicSubnetName]: publicSubnet } = builder.addResources({
-            [publicSubnetName]: {
-              Type: 'AWS::EC2::Subnet',
-              Properties: {
-                Tags: obj2kv({
-                  Name: `public-${num}`,
-                  Environment: environment,
-                }),
-                VpcId: vpc,
-                CidrBlock: builder.fnSelect(num, publicSubnetCidrs),
-                MapPublicIpOnLaunch: true,
-                AvailabilityZone: builder.fnSelect(num, availabilityZones),
-              },
+          const publicSubnet = builder.addResource(`publicSubnet${num}`, {
+            Type: 'AWS::EC2::Subnet',
+            Properties: {
+              Tags: obj2kv({
+                Name: `public-${num}`,
+                Environment: environment,
+              }),
+              VpcId: vpc,
+              CidrBlock: builder.fnSelect(num, publicSubnetCidrs),
+              MapPublicIpOnLaunch: true,
+              AvailabilityZone: builder.fnSelect(num, availabilityZones),
             },
           });
 
-          const publicSubnetAssocName = `publicSubnetAssoc${num}`;
-          builder.addResources({
-            [publicSubnetAssocName]: {
-              Type: 'AWS::EC2::SubnetRouteTableAssociation',
-              Properties: {
-                SubnetId: publicSubnet,
-                RouteTableId: publicRouteTable,
-              },
+          builder.addResource(`publicSubnetAssoc${num}`, {
+            Type: 'AWS::EC2::SubnetRouteTableAssociation',
+            Properties: {
+              SubnetId: publicSubnet,
+              RouteTableId: publicRouteTable,
             },
           });
 
