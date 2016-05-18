@@ -46,8 +46,15 @@ async function waitFor({ stackName }) {
 
         if (!_.isEmpty(stackEvents)) {
           _.forEachRight(stackEvents,
-            stackEvent => log.info({ stackEvent },
-              `${stackEvent.LogicalResourceId} ${stackEvent.ResourceStatus}`));
+            stackEvent => {
+              if (stackEvent.ResourceStatus.endsWith('_FAILED')) {
+                log.error({ stackEvent },
+                  `${stackEvent.LogicalResourceId} ${stackEvent.ResourceStatus}`);
+              } else {
+                log.info({ stackEvent },
+                  `${stackEvent.LogicalResourceId} ${stackEvent.ResourceStatus}`);
+              }
+            });
           lastEventId = stackEvents[0].EventId;
         }
 
@@ -133,17 +140,17 @@ function showDiff({ differences, stacksFile, stackName }) {
   console.log(`+++ ${stacksFile} ${stackName}`);
   differences.forEach(d => {
     console.log(` ${d.path.join('.')}`);
-    if (d.lhs) {
+    if (!_.isEmpty(d.lhs)) {
       console.log(colors.red(`-${JSON.stringify(d.lhs)}`));
     }
-    if (d.rhs) {
+    if (!_.isEmpty(d.rhs)) {
       console.log(colors.green(`+${JSON.stringify(d.rhs)}`));
     }
     if (d.kind === 'A') {
-      if (d.item.lhs) {
+      if (!_.isEmpty(d.item.lhs)) {
         console.log(colors.red(`-[${d.index}] ${JSON.stringify(d.item.lhs)}`));
       }
-      if (d.item.rhs) {
+      if (!_.isEmpty(d.item.rhs)) {
         console.log(colors.green(`+[${d.index}] ${JSON.stringify(d.item.rhs)}`));
       }
     }
@@ -255,10 +262,17 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
         StackPolicyBody: stack.policy,
         TemplateBody: JSON.stringify(stack.template),
         Tags: objectToKVArray(stack.tags),
+        Capabilities: ['CAPABILITY_IAM'],
       }).promise();
 
       log.info({ stackName, update }, 'Stack update started');
       newStack = await waitFor({ stackName, state: 'stackUpdateComplete' });
+
+      if (newStack.StackStatus !== 'UPDATE_COMPLETE') {
+        log.error({ newStack }, 'Failed to create stack');
+        throw new Error(`Failed to create stack ${stackName}`);
+      }
+
       log.info({ stackName, updatedStack: newStack }, 'Stack update complete');
     } else {
       // creating stack
@@ -269,6 +283,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
         StackPolicyBody: stack.policy,
         TemplateBody: JSON.stringify(stack.template),
         Tags: objectToKVArray(stack.tags),
+        Capabilities: ['CAPABILITY_IAM'],
       }).promise();
 
       log.info({ stackName, create }, 'Create stack started');
