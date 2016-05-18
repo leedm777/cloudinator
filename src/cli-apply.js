@@ -21,74 +21,74 @@ function mapOutputs(awsOutput) {
   }, {});
 }
 
-function mapParameters(awsParameters) {
-  return _.reduce(awsParameters, (acc, { ParameterKey, ParameterValue }) => {
-    acc[ParameterKey] = ParameterValue;
-    return acc;
-  }, {});
-}
 function objectToKVArray(obj) {
   return _.map(obj, (v, k) => ({ Key: k, Value: v }));
 }
 
 async function waitFor({ stackName }) {
   log.debug({ stackName }, 'Getting initial events');
-  const { StackEvents: initialEvents } =
-    await cfn.describeStackEvents({ StackName: stackName }).promise();
-  let lastEventId = _.get(initialEvents, 'StackEvents[0].EventId');
+  const rawEvents = await cfn.describeStackEvents({ StackName: stackName }).promise();
+  log.trace({ rawEvents }, 'Raw events');
+  let lastEventId = _.get(rawEvents, 'StackEvents[0].EventId');
 
   return new Promise((resolve, reject) => {
     async function poll() {
-      log.debug({ stackName }, 'Describing stack');
-      // capture stack status prior to events, otherwise we might miss the last few events
-      const { StackEvents: [stack] } =
-        await cfn.describeStacks({ StackName: stackName }).promise();
+      try {
+        log.trace({ stackName }, 'Describing stack');
+        // capture stack status prior to events, otherwise we might miss the last few events
+        const { Stacks: [stack] } =
+          await cfn.describeStacks({ StackName: stackName }).promise();
 
-      log.debug({ stackName }, 'Describing stack events');
-      let { StackEvents: stackEvents } =
-        await cfn.describeStackEvents({ StackName: stackName }).promise();
-      stackEvents = _.takeWhile(stackEvents, e => e.id !== lastEventId);
+        log.trace({ stackName }, 'Describing stack events');
+        let { StackEvents: stackEvents } =
+          await cfn.describeStackEvents({ StackName: stackName }).promise();
+        stackEvents = _.takeWhile(stackEvents, e => e.EventId !== lastEventId);
 
-      if (!_.isEmpty(stackEvents)) {
-        _.forEach(stackEvents, stackEvent => log.info({ stackEvent }));
-        lastEventId = stackEvents[0].EventId;
+        if (!_.isEmpty(stackEvents)) {
+          _.forEachRight(stackEvents,
+            stackEvent => log.info({ stackEvent },
+              `${stackEvent.LogicalResourceId} ${stackEvent.ResourceStatus}`));
+          lastEventId = stackEvents[0].EventId;
+        }
+
+        log.trace({ stackName, stack: _.pick(stack, ['StackStatus', 'StackStatusReason']) },
+          'Processing status');
+        switch (stack.StackStatus) {
+          case 'CREATE_IN_PROGRESS':
+          case 'ROLLBACK_IN_PROGRESS':
+          case 'DELETE_IN_PROGRESS':
+          case 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS':
+          case 'UPDATE_IN_PROGRESS':
+          case 'UPDATE_ROLLBACK_IN_PROGRESS':
+          case 'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS':
+            break;
+
+          case 'CREATE_COMPLETE':
+          case 'ROLLBACK_COMPLETE':
+          case 'DELETE_COMPLETE':
+          case 'UPDATE_COMPLETE':
+          case 'UPDATE_ROLLBACK_COMPLETE':
+            resolve(stack);
+            return;
+
+          case 'CREATE_FAILED':
+          case 'ROLLBACK_FAILED':
+          case 'DELETE_FAILED':
+          case 'UPDATE_ROLLBACK_FAILED':
+            reject(new Error(`Stack failed: ${stack.StackStatusReason}`));
+            return;
+
+          default:
+            reject(
+              new Error(`Unknown status: ${stack.StackStatus}: ${stack.StackStatusReason}`));
+            return;
+        }
+
+        // not done yet; try again later
+        setTimeout(poll, 5000);
+      } catch (err) {
+        reject(err);
       }
-
-      log.debug({ stackName, status: stack.StackStatus, reason: stack.StackStatusReason },
-        'Processing status');
-      switch (stack.StackStatus) {
-        case 'CREATE_IN_PROGRESS':
-        case 'ROLLBACK_IN_PROGRESS':
-        case 'DELETE_IN_PROGRESS':
-        case 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS':
-        case 'UPDATE_IN_PROGRESS':
-        case 'UPDATE_ROLLBACK_IN_PROGRESS':
-        case 'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS':
-          break;
-
-        case 'CREATE_COMPLETE':
-        case 'ROLLBACK_COMPLETE':
-        case 'DELETE_COMPLETE':
-        case 'UPDATE_COMPLETE':
-        case 'UPDATE_ROLLBACK_COMPLETE':
-          resolve(stack);
-          return;
-
-        case 'CREATE_FAILED':
-        case 'ROLLBACK_FAILED':
-        case 'DELETE_FAILED':
-        case 'UPDATE_ROLLBACK_FAILED':
-          reject(new Error(`Stack failed: ${stack.StackStatusReason}`));
-          return;
-
-        default:
-          reject(
-            new Error(`Unknown status: ${stack.StackStatus}: ${stack.StackStatusReason}`));
-          return;
-      }
-
-      // not done yet; try again later
-      setTimeout(poll, 5000);
     }
 
     // kick off the polling
@@ -205,23 +205,25 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
       _.keys(_.get(stack, 'template.Parameters', {})));
     parameters = _.pick(parameters, validParams);
 
-    // now put it in AWS format:
-    parameters = _.map(parameters, (v, k) => ({ ParameterKey: k, ParameterValue: v }));
-
     // wait until we see if the current stack exists
     currentStack = await currentStack;
 
-    if (currentStack.StackStatus === 'ROLLBACK_COMPLETE') {
-      log.info({ stackName }, 'Deleting failed stack');
-      await cfn.deleteStack({
+    if (_.get(currentStack, 'StackStatus') === 'ROLLBACK_COMPLETE') {
+      log.info({ stackName, currentStack }, 'Deleting failed stack');
+      const del = await cfn.deleteStack({
         StackName: stackName,
       }).promise();
+      log.debug({ del }, 'Stack delete started');
+      await waitFor({ stackName: currentStack.StackId });
       currentStack = null;
     }
 
     log.debug({ stackName }, 'getting current template');
     const currentTemplateBody = await getTemplate(stackName);
-    const currentParameters = mapParameters(_.get(currentStack, 'Parameters', []));
+    const currentParameters = _(_.get(currentStack, 'Parameters', []))
+      .keyBy('ParameterKey')
+      .mapValues('ParameterValue')
+      .value();
     const differences = deepDiff({
       parameters: currentParameters,
       template: currentTemplateBody,
@@ -240,6 +242,9 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     if (diff) {
       return currentStack;
     }
+
+    // now put params in AWS format
+    parameters = _.map(parameters, (v, k) => ({ ParameterKey: k, ParameterValue: v }));
 
     let newStack;
     if (currentStack) {
@@ -268,7 +273,13 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
 
       log.info({ stackName, create }, 'Create stack started');
       newStack = await waitFor({ stackName, state: 'stackUpdateComplete' });
-      log.info({ stackName, updatedStack: newStack }, 'Stack create complete');
+
+      if (newStack.StackStatus !== 'CREATE_COMPLETE') {
+        log.error({ newStack }, 'Failed to create stack');
+        throw new Error(`Failed to create stack ${stackName}`);
+      }
+
+      log.info({ stackName, newStack }, 'Stack create complete');
     }
 
     return newStack;
