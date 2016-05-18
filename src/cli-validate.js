@@ -2,7 +2,6 @@
 
 import AWS from 'aws-sdk';
 
-import { promCall } from './promCall';
 import { UserError } from './errors';
 import { loadFile } from './loader';
 import { log } from './log';
@@ -24,7 +23,7 @@ async function validate({ template }) {
     throw new UserError(err.message);
   }
 
-  await promCall(cfn.validateTemplate, cfn, { TemplateBody: content });
+  await cfn.validateTemplate({ TemplateBody: content }).promise();
   // nothing much to do with the results
   log.info({ template }, 'Okay');
 }

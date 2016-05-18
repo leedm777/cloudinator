@@ -8,7 +8,6 @@ import { diff as deepDiff } from 'deep-diff';
 import { UserError } from './errors';
 import { loadStacks } from './loader';
 import { log } from './log';
-import { promCall } from './promCall';
 
 const cfn = new AWS.CloudFormation({
   apiVersion: '2010-05-15',
@@ -57,7 +56,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
   const describeStack = _.memoize(async stackName => {
     log.debug({ stackName }, 'describing stack');
     try {
-      const data = await promCall(cfn.describeStacks, cfn, { StackName: stackName });
+      const data = await cfn.describeStacks({ StackName: stackName }).promise();
       return _.get(data, 'Stacks[0]');
     } catch (err) {
       // validation errors are when the stack isn't found; otherwise rethrow
@@ -72,7 +71,7 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
   const getTemplate = async stackName => {
     log.debug({ stackName }, 'getting template');
     try {
-      const data = await promCall(cfn.getTemplate, cfn, { StackName: stackName });
+      const data = await cfn.getTemplate({ StackName: stackName }).promise();
       return JSON.parse(_.get(data, 'TemplateBody'));
     } catch (err) {
       // validation errors are when the stack isn't found; otherwise rethrow
@@ -172,22 +171,22 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     let newStack;
     if (currentStack) {
       log.info({ stackName }, 'Updating stack');
-      newStack = await promCall(cfn.updateStack, cfn, {
+      newStack = await cfn.updateStack({
         Parameters: parameters,
         StackPolicyBody: stack.policy,
         TemplateBody: stack.template,
         Tags: objectToKVArray(stack.tags),
-      });
+      }).promise();
       log.info({ stackName }, 'Updated stack');
     } else {
       // creating stack
       log.info({ stackName }, 'Creating stack');
-      newStack = await promCall(cfn.createStack, cfn, {
+      newStack = await cfn.createStack({
         Parameters: parameters,
         StackPolicyBody: stack.policy,
         TemplateBody: stack.template,
         Tags: objectToKVArray(stack.tags),
-      });
+      }).promise();
       log.info({ stackName }, 'Created stack');
     }
 
