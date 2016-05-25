@@ -3,6 +3,7 @@
 import AWS from 'aws-sdk';
 import _ from 'lodash';
 import colors from 'colors/safe';
+import uuid from 'uuid';
 import { diff as deepDiff } from 'deep-diff';
 
 import { UserError } from './errors';
@@ -68,6 +69,7 @@ async function waitFor({ stackName }) {
           case 'UPDATE_IN_PROGRESS':
           case 'UPDATE_ROLLBACK_IN_PROGRESS':
           case 'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS':
+            // stack still in progress
             break;
 
           case 'CREATE_COMPLETE':
@@ -88,6 +90,48 @@ async function waitFor({ stackName }) {
           default:
             reject(
               new Error(`Unknown status: ${stack.StackStatus}: ${stack.StackStatusReason}`));
+            return;
+        }
+
+        // not done yet; try again later
+        setTimeout(poll, 5000);
+      } catch (err) {
+        reject(err);
+      }
+    }
+
+    // kick off the polling
+    setTimeout(poll, 5000);
+  });
+}
+
+function waitForChangeset({ stackName, id }) {
+  return new Promise((resolve, reject) => {
+    async function poll() {
+      try {
+        log.trace({ stackName, id }, 'Describing changeset');
+        const changeset =
+          await cfn.describeChangeSet({ ChangeSetName: id, StackName: stackName }).promise();
+
+        log.trace({ stackName, changeset }, 'Changeset');
+
+        switch (changeset.Status) {
+          case 'CREATE_PENDING':
+          case 'CREATE_IN_PROGRESS':
+            // changeset still in progress
+            break;
+
+          case 'CREATE_COMPLETE':
+          case 'DELETE_COMPLETE':
+            resolve(changeset);
+            break;
+          case 'FAILED':
+            reject(new Error(`Stack failed: ${changeset.StatusReason}`));
+            return;
+
+          default:
+            reject(new Error(
+              `Unknown status: ${changeset.StackStatus}: ${changeset.StackStatusReason}`));
             return;
         }
 
@@ -158,7 +202,7 @@ function showDiff({ differences, stacksFile, stackName }) {
   /* eslint-enable no-console */
 }
 
-async function applyStack({ stacks: stacksFile, only, diff }) {
+async function applyStack({ stacksFile, only, diff, changeSet }) {
   if (!stacksFile) {
     throw new UserError('Missing --stacks');
   }
@@ -254,7 +298,21 @@ async function applyStack({ stacks: stacksFile, only, diff }) {
     parameters = _.map(parameters, (v, k) => ({ ParameterKey: k, ParameterValue: v }));
 
     let newStack;
-    if (currentStack) {
+    if (currentStack && changeSet) {
+      log.info({ stackName }, 'Creating change set');
+      let changeset = await cfn.createChangeSet({
+        ChangeSetName: `cs-${uuid.v4()}`,
+        StackName: stackName,
+        Parameters: parameters,
+        TemplateBody: JSON.stringify(stack.template),
+        Tags: objectToKVArray(stack.tags),
+        Capabilities: ['CAPABILITY_IAM'],
+      }).promise();
+
+      log.info({ stackName, changeset }, 'Changeset create started');
+      changeset = await waitForChangeset({ stackName, id: changeset.Id });
+      log.info({ stackName, changeset }, 'Changeset created');
+    } else if (currentStack) {
       log.info({ stackName }, 'Updating stack');
       const update = await cfn.updateStack({
         StackName: stackName,
@@ -321,12 +379,12 @@ export default function (program) {
   }
 
   program
-    .command('apply')
+    .command('apply <stacks-file>')
     .description('Update a stack from a template and parameters')
-    .option('--stacks [file]', 'Stack configuration to apply')
     .option('--only [stack]', 'Only apply this stack; can be given more than once', collect, [])
     .option('--diff', 'Instead of applying, show a diff of the stack objects')
-    .action(options => {
-      options.parent.subcommand = applyStack.bind(null, options);
+    .option('--change-set', 'Instead of applying, create a change set')
+    .action((stacksFile, options) => {
+      options.parent.subcommand = applyStack.bind(null, _.assign({}, options, { stacksFile }));
     });
 }

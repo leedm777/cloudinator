@@ -2560,6 +2560,11 @@
       "from": "util-deprecate@>=1.0.1 <1.1.0",
       "resolved": "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz"
     },
+    "uuid": {
+      "version": "2.0.2",
+      "from": "uuid@latest",
+      "resolved": "https://registry.npmjs.org/uuid/-/uuid-2.0.2.tgz"
+    },
     "v8flags": {
       "version": "2.0.11",
       "from": "v8flags@>=2.0.10 <3.0.0",
