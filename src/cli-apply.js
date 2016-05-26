@@ -236,15 +236,15 @@ async function applyStack({ stacksFile, only, diff, changeSet }) {
         stack.dependsOn = [stack.dependsOn];
       }
 
-      parameters = _.reduce(stack.dependsOn, async(p, dependent) => {
+      parameters = await _.reduce(stack.dependsOn, async(p, dependent) => {
+        // wait a tick so appliedStacks has its value
+        await Promise.resolve();
         const description = await (_.has(appliedStacks, dependent) ?
           appliedStacks[dependent] :
           describeStack(dependent));
         const outputs = mapOutputs(_.get(description, 'Outputs'));
         return _.assign({}, await p, outputs);
       }, parameters);
-
-      parameters = await parameters;
     }
 
     // finally params set in the stack itself
