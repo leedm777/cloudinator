@@ -184,17 +184,17 @@ function showDiff({ differences, stacksFile, stackName }) {
   console.log(`+++ ${stacksFile} ${stackName}`);
   differences.forEach(d => {
     console.log(` ${d.path.join('.')}`);
-    if (!_.isEmpty(d.lhs)) {
+    if (_.has(d, 'lhs')) {
       console.log(colors.red(`-${JSON.stringify(d.lhs)}`));
     }
-    if (!_.isEmpty(d.rhs)) {
+    if (_.has(d, 'rhs')) {
       console.log(colors.green(`+${JSON.stringify(d.rhs)}`));
     }
     if (d.kind === 'A') {
-      if (!_.isEmpty(d.item.lhs)) {
+      if (_.has(d.item, 'lhs')) {
         console.log(colors.red(`-[${d.index}] ${JSON.stringify(d.item.lhs)}`));
       }
-      if (!_.isEmpty(d.item.rhs)) {
+      if (_.has(d.item, 'rhs')) {
         console.log(colors.green(`+[${d.index}] ${JSON.stringify(d.item.rhs)}`));
       }
     }
