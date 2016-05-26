@@ -317,7 +317,7 @@ async function applyStack({ stacksFile, only, diff, changeSet }) {
       const update = await cfn.updateStack({
         StackName: stackName,
         Parameters: parameters,
-        StackPolicyBody: stack.policy,
+        StackPolicyBody: JSON.stringify(stack.policy),
         TemplateBody: JSON.stringify(stack.template),
         Tags: objectToKVArray(stack.tags),
         Capabilities: ['CAPABILITY_IAM'],
@@ -338,7 +338,7 @@ async function applyStack({ stacksFile, only, diff, changeSet }) {
       const create = await cfn.createStack({
         StackName: stackName,
         Parameters: parameters,
-        StackPolicyBody: stack.policy,
+        StackPolicyBody: JSON.stringify(stack.policy),
         TemplateBody: JSON.stringify(stack.template),
         Tags: objectToKVArray(stack.tags),
         Capabilities: ['CAPABILITY_IAM'],
