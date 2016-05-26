@@ -177,6 +177,21 @@ async function getTemplate(stackName) {
   }
 }
 
+async function getPolicy(stackName) {
+  log.debug({ stackName }, 'getting policy');
+  try {
+    const data = await cfn.getStackPolicy({ StackName: stackName }).promise();
+    return JSON.parse(_.get(data, 'StackPolicyBody', '{}'));
+  } catch (err) {
+    // validation errors are when the stack isn't found; otherwise rethrow
+    if (_.get(err, 'code') === 'ValidationError') {
+      return null;
+    }
+
+    throw err;
+  }
+}
+
 function showDiff({ differences, stacksFile, stackName }) {
   /* eslint-disable no-console */
   console.log(`cloudinator --apply --diff --stacks ${stacksFile} --only ${stackName}`);
@@ -275,12 +290,15 @@ async function applyStack({ stacksFile, only, diff, changeSet }) {
       .keyBy('ParameterKey')
       .mapValues('ParameterValue')
       .value();
+    const currentPolicy = await getPolicy(stackName);
     const differences = deepDiff({
       parameters: currentParameters,
       template: currentTemplateBody,
+      policy: currentPolicy,
     }, {
       parameters,
       template: stack.template,
+      policy: _.get(stack, 'policy', {}),
     });
 
     if (differences) {
@@ -318,6 +336,8 @@ async function applyStack({ stacksFile, only, diff, changeSet }) {
         StackName: stackName,
         Parameters: parameters,
         StackPolicyBody: JSON.stringify(stack.policy),
+        // Allow policy updates to take effect for this update
+        StackPolicyDuringUpdateBody: JSON.stringify(stack.policy),
         TemplateBody: JSON.stringify(stack.template),
         Tags: objectToKVArray(stack.tags),
         Capabilities: ['CAPABILITY_IAM'],
