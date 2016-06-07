@@ -26,7 +26,7 @@ export async function getSchema({ url = URL, file } = {}) {
   } else {
     let cache = null;
     try {
-      cache = require(cacheFile);
+      cache = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
     } catch (ignored) {
       // default empty cache
       cache = {};

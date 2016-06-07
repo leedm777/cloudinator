@@ -5,7 +5,7 @@ import bformat from 'bunyan-format';
 
 const { name } = require('../package.json');
 
-export let log;
+export let log; // eslint-disable-line import/no-mutable-exports
 
 export function initLogger({ bunyanFormat, logLevel }) {
   log = bunyan.createLogger({

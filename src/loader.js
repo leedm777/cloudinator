@@ -8,7 +8,7 @@ import { log } from './log';
 import { UserError } from './errors';
 
 function loadJs(file) {
-  return require(file);
+  return require(file); // eslint-disable-line global-require
 }
 
 function loadYaml(file) {
@@ -72,11 +72,7 @@ export async function loadStacks(file) {
       _.mapValues(content.config.defaults, v => (_.isArray(v) ? v.join(',') : v));
   }
 
-  for (const stackName in content.stacks) {
-    if (!Object.hasOwnProperty.call(content.stacks, stackName)) {
-      continue;
-    }
-
+  for (const stackName of _.keys(content.stacks)) {
     const stack = content.stacks[stackName];
     if (_.isString(stack.template)) {
       stack.template = await loadFile(stack.template, path.dirname(file));
