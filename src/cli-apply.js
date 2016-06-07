@@ -393,17 +393,9 @@ async function applyStack({ stacksFile, only, diff, changeSet }) {
 }
 
 export default function (program) {
-  function collect(val, list) {
-    list.push(val);
-    return list;
-  }
-
   program
-    .command('apply <stacks-file>')
-    .description('Update a stack from a template and parameters')
-    .option('--only [stack]', 'Only apply this stack; can be given more than once', collect, [])
-    .option('--diff', 'Instead of applying, show a diff of the stack objects')
-    .option('--change-set', 'Instead of applying, create a change set')
+    .command('apply <stack> <changeset>')
+    .description('Applies a changeset to a stack')
     .action((stacksFile, options) => {
       options.parent.subcommand = applyStack.bind(null, _.assign({}, options, { stacksFile }));
     });

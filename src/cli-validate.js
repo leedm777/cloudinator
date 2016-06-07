@@ -32,7 +32,7 @@ export default function (program) {
   program
     .command('validate')
     .usage('--template [file] --parameters [file] [options]')
-    .description('Validate a template')
+    .description('Validate templates and parameters for stacks')
     .option('--template [file]', 'Template to plan with')
     .action(options => {
       // eslint-disable-next-line no-param-reassign

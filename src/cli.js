@@ -1,18 +1,20 @@
 // Copyright (c) 2016, David M. Lee, II
+
 import 'babel-polyfill';
 
-import program from 'commander';
 import _ from 'lodash';
+import program from 'commander';
 import { install as installSourceMapSupport } from 'source-map-support';
 
 import apply from './cli-apply';
-import changeSet from './cli-change-set';
+import create from './cli-create';
+import destroy from './cli-destroy';
+import outdated from './cli-outdated';
+import plan from './cli-plan';
 import validate from './cli-validate';
 import { UserError } from './errors';
-
 import { initLogger, log } from './log';
-
-const { version } = require('../package.json');
+import { version } from '../package.json';
 
 installSourceMapSupport();
 
@@ -23,8 +25,11 @@ program.version(version)
   .option('   --require [module]', 'Requires the given module', m => require(m));
   /* eslint-enable */
 
+create(program);
+outdated(program);
+plan(program);
 apply(program);
-changeSet(program);
+destroy(program);
 validate(program);
 
 program.command('*', null, { noHelp: true })
