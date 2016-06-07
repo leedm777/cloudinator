@@ -37,9 +37,10 @@
     "colors": "^1.1.2",
     "commander": "^2.9.0",
     "deep-diff": "^0.3.4",
-    "js-yaml": "^3.6.1",
+    "interpret": "^1.0.1",
     "lodash": "^4.13.1",
     "node-fetch": "^1.5.3",
+    "require-yaml": "0.0.1",
     "source-map-support": "^0.4.0",
     "uuid": "^2.0.2"
   }

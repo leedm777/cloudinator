@@ -1,37 +1,11 @@
 // Copyright (c) 2016, David M. Lee, II
 
-import { transformFile } from 'babel-core';
+import interpret from 'interpret';
 import path from 'path';
-import fs from 'fs';
-import yaml from 'js-yaml';
 import _ from 'lodash';
 
 import { log } from './log';
 import { UserError } from './errors';
-
-function loadJs(file) {
-  if (!file.endsWith('.babel.js')) {
-    return require(file); // eslint-disable-line global-require
-  }
-
-  log.info({ file }, 'Transpiling');
-  return new Promise((resolve, reject) => {
-    transformFile(file, (err, { code }) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(eval(code)); // eslint-disable-line no-eval
-    });
-  });
-}
-
-function loadYaml(file) {
-  const content = fs.readFileSync(file, 'utf8');
-  return yaml.safeLoad(content, {
-    filename: file,
-  });
-}
 
 function resolve(content) {
   return Promise.resolve(content)
@@ -48,26 +22,65 @@ function resolve(content) {
     });
 }
 
-export async function loadFile(file, basePath = process.cwd()) {
-  log.debug({ file }, 'loading');
-  file = path.resolve(basePath, file);
+const registered = {};
 
-  const ext = path.extname(file);
-  let content;
-  switch (ext) {
-    case '.js':
-    case '.json':
-      content = loadJs(file);
-      break;
-    case '.yaml':
-    case '.yml':
-      content = loadYaml(file);
-      break;
-    default:
-      throw new UserError(`Unrecognized file type: ${ext}`);
+function register(key) {
+  if (registered[key]) {
+    return;
   }
 
-  log.debug({ file }, 'resolving');
+  function reg(handler) {
+    /* eslint-disable global-require */
+    if (_.isNull(handler)) {
+      // do nothing
+    } else if (_.isString(handler)) {
+      log.trace({ handler }, 'loading handler string');
+      require(handler);
+    } else if (_.isPlainObject(handler)) {
+      log.trace({ handler }, 'loading handler object');
+      handler.register(require(handler.module));
+    } else if (_.isArray(handler)) {
+      log.trace({ handler }, 'loading handler array');
+      let errors = [];
+      for (const h of handler) {
+        try {
+          reg(h);
+          log.trace('Success!');
+          errors = [];
+          break;
+        } catch (err) {
+          // continue
+          errors.push(err);
+        }
+      }
+      if (!_.isEmpty(errors)) {
+        throw errors[0];
+      }
+    }
+    /* eslint-enable */
+  }
+
+  reg(interpret.extensions[key]);
+  registered[key] = true;
+}
+
+export async function loadFile(file, basePath = process.cwd()) {
+  log.debug({ file, basePath }, 'loading');
+  file = path.resolve(basePath, file);
+
+  const key = _.find(_.keys(interpret.extensions), k => file.endsWith(k));
+
+  if (!key) {
+    const ext = path.extname(file);
+    log.fatal({ file, ext }, 'Unknown file type');
+    throw new UserError(`Unrecognized file type: ${ext}`);
+  }
+
+  register(key);
+
+  log.trace({ file }, 'requiring');
+  let content = require(file); // eslint-disable-line global-require
+  log.trace({ file }, 'resolving');
   content = await resolve(content);
   log.trace({ file, content }, 'loaded');
 

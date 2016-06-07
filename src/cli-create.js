@@ -137,24 +137,28 @@ async function createStacks({ stacksFile, only }) {
     only = _.keys(stacks);
   }
 
-  const createStack = _.memoize(async (stackName) => {
+  const createStack = _.memoize(async(stackName) => {
     const stack = stacks[stackName];
 
     // start with default parameters
     let parameters = _.get(config, 'defaults', {});
 
     // then learn params from dependencies
-    if (stack.dependsOn) {
-      if (_.isString(stack.dependsOn)) {
-        stack.dependsOn = [stack.dependsOn];
-      }
+    try {
+      if (stack.dependsOn) {
+        if (_.isString(stack.dependsOn)) {
+          stack.dependsOn = [stack.dependsOn];
+        }
 
-      parameters = await _.reduce(stack.dependsOn, async(p, dependent) => {
-        const description = await (_.includes(only, dependent) ?
-          createStack(dependent) : describeStack(dependent));
-        const outputs = mapOutputs(_.get(description, 'Outputs'));
-        return _.assign({}, await p, outputs);
-      }, parameters);
+        parameters = await _.reduce(stack.dependsOn, async(p, dependent) => {
+          const description = await (_.includes(only, dependent) ?
+            createStack(dependent) : describeStack(dependent));
+          const outputs = mapOutputs(_.get(description, 'Outputs'));
+          return _.assign({}, await p, outputs);
+        }, parameters);
+      }
+    } catch (err) {
+      throw new UserError(`Error from dependency: ${err.message}`);
     }
 
     // finally params set in the stack itself
@@ -166,6 +170,9 @@ async function createStacks({ stacksFile, only }) {
       _.keys(_.get(stack, 'template.Parameters', {})));
     parameters = _.pick(parameters, validParams);
 
+    // now put params in AWS format
+    parameters = _.map(parameters, (v, k) => ({ ParameterKey: k, ParameterValue: v }));
+
     // creating stack
     log.info({ stackName }, 'Creating stack');
     const create = await cfn.createStack({
@@ -175,6 +182,7 @@ async function createStacks({ stacksFile, only }) {
       TemplateBody: JSON.stringify(stack.template),
       Tags: objectToKVArray(stack.tags),
       Capabilities: ['CAPABILITY_IAM'],
+      OnFailure: 'DELETE',
     }).promise();
 
     log.info({ stackName, create }, 'Create stack started');
@@ -193,7 +201,7 @@ async function createStacks({ stacksFile, only }) {
   const results = await _(only)
     .map(createStack)
     .map(p => p.then(value => ({ value }), cause => ({ cause })))
-    .thru(Promise.all)
+    .thru(Promise.all.bind(Promise))
     .value();
 
   const failures = _(results)
@@ -203,7 +211,7 @@ async function createStacks({ stacksFile, only }) {
 
   if (!_.isEmpty(failures)) {
     _.forEach(failures, err => log.error({ err }, 'Error creating stack'));
-    throw new Error(`Failed to create ${_.size(failures)} stacks`);
+    throw new UserError(`Failed to create ${_.size(failures)} stacks`);
   }
 }
 

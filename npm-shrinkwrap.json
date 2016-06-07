@@ -1616,6 +1616,11 @@
       "from": "inquirer@>=0.12.0 <0.13.0",
       "resolved": "https://registry.npmjs.org/inquirer/-/inquirer-0.12.0.tgz"
     },
+    "interpret": {
+      "version": "1.0.1",
+      "from": "interpret@>=1.0.1 <2.0.0",
+      "resolved": "https://registry.npmjs.org/interpret/-/interpret-1.0.1.tgz"
+    },
     "invariant": {
       "version": "2.2.1",
       "from": "invariant@>=2.2.0 <3.0.0",
@@ -1792,7 +1797,7 @@
     },
     "js-yaml": {
       "version": "3.6.1",
-      "from": "js-yaml@>=3.6.1 <4.0.0",
+      "from": "js-yaml@latest",
       "resolved": "https://registry.npmjs.org/js-yaml/-/js-yaml-3.6.1.tgz"
     },
     "jsbn": {
@@ -2305,6 +2310,11 @@
       "version": "1.0.2",
       "from": "require-uncached@>=1.0.2 <2.0.0",
       "resolved": "https://registry.npmjs.org/require-uncached/-/require-uncached-1.0.2.tgz"
+    },
+    "require-yaml": {
+      "version": "0.0.1",
+      "from": "require-yaml@0.0.1",
+      "resolved": "https://registry.npmjs.org/require-yaml/-/require-yaml-0.0.1.tgz"
     },
     "resolve": {
       "version": "1.1.7",
