@@ -1,4 +1,6 @@
 // Copyright (c) 2016, David M. Lee, II
+
+import { transformFile } from 'babel-core';
 import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
@@ -8,7 +10,20 @@ import { log } from './log';
 import { UserError } from './errors';
 
 function loadJs(file) {
-  return require(file); // eslint-disable-line global-require
+  if (!file.endsWith('.babel.js')) {
+    return require(file); // eslint-disable-line global-require
+  }
+
+  log.info({ file }, 'Transpiling');
+  return new Promise((resolve, reject) => {
+    transformFile(file, (err, { code }) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(eval(code)); // eslint-disable-line no-eval
+    });
+  });
 }
 
 function loadYaml(file) {
