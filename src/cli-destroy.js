@@ -4,9 +4,17 @@ import _ from 'lodash';
 
 import { UserError } from './errors';
 import { allSettled, logFailures } from './promises';
-import { cfn, waitForAndLogEvents } from './aws';
+import { cfn, listAllResources, waitForAndLogEvents } from './aws';
 import { loadStacks } from './loader';
 import { log } from './log';
+import { prompt } from './prompt';
+
+async function showResources(stackName) {
+  const resources = _(await listAllResources({ stackName }))
+    .map(r => _.pick(r, ['ResourceType', 'LogicalResourceId', 'PhysicalResourceId']))
+    .value();
+  log.info({ stackName, resources }, 'Resources to be deleted');
+}
 
 async function destroyStacks({ stacksFile, only }) {
   if (!stacksFile) {
@@ -26,6 +34,18 @@ async function destroyStacks({ stacksFile, only }) {
     }
   } else {
     only = _.keys(stacks);
+  }
+
+  await _(only)
+    .map(showResources)
+    .thru(Promise.all.bind(Promise))
+    .value();
+
+  const answer = await prompt('Are you sure you want to delete? (yes/no) ');
+
+  if (answer !== 'yes') {
+    log.info('Aborting');
+    process.exit(1);
   }
 
   const toDestroy = _(only)

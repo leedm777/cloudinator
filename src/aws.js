@@ -8,6 +8,18 @@ export const cfn = new AWS.CloudFormation({
   region: 'us-east-1',
 });
 
+export async function listAllResources({ stackName, nextToken }) {
+  const { StackResourceSummaries: resources, NextToken: nextNextToken } =
+    await cfn.listStackResources({ StackName: stackName, NextToken: nextToken }).promise();
+
+  if (nextNextToken) {
+    const moreResources = await listAllResources({ stackName, nextToken: nextNextToken });
+    return resources.concat(moreResources);
+  }
+
+  return resources;
+}
+
 export async function waitForAndLogEvents({ stackName }) {
   log.debug({ stackName }, 'Getting stack id');
   const { Stacks: [{ StackId: stackId }] } =
