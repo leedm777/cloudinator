@@ -1,7 +1,7 @@
 import AWS from 'aws-sdk';
 import _ from 'lodash';
 
-import { log } from './log';
+import { log } from './util/log';
 
 export const cfn = new AWS.CloudFormation({
   apiVersion: '2010-05-15',

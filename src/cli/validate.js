@@ -2,9 +2,9 @@
 
 import AWS from 'aws-sdk';
 
-import { UserError } from './errors';
-import { loadFile } from './loader';
-import { log } from './log';
+import { UserError } from '../util/errors';
+import { loadFile } from '../util/loader';
+import { log } from '../util/log';
 
 const cfn = new AWS.CloudFormation({
   apiVersion: '2010-05-15',

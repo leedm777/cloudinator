@@ -6,15 +6,15 @@ import _ from 'lodash';
 import program from 'commander';
 import { install as installSourceMapSupport } from 'source-map-support';
 
-import apply from './cli-apply';
-import create from './cli-create';
-import destroy from './cli-destroy';
-import outdated from './cli-outdated';
-import plan from './cli-plan';
-import validate from './cli-validate';
-import { UserError } from './errors';
-import { initLogger, log } from './log';
-import { version } from '../package.json';
+import apply from './apply';
+import create from './create';
+import destroy from './destroy';
+import outdated from './outdated';
+import plan from './plan';
+import validate from './validate';
+import { UserError } from '../util/errors';
+import { initLogger, log } from '../util/log';
+import { version } from '../../package.json';
 
 installSourceMapSupport();
 

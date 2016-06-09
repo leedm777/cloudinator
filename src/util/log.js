@@ -3,7 +3,7 @@
 import bunyan from 'bunyan';
 import bformat from 'bunyan-format';
 
-const { name } = require('../package.json');
+const { name } = require('../../package.json');
 
 export let log; // eslint-disable-line import/no-mutable-exports
 

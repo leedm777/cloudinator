@@ -2,12 +2,12 @@
 
 import _ from 'lodash';
 
-import { UserError } from './errors';
-import { allSettled, logFailures } from './promises';
-import { cfn, listAllResources, waitForAndLogEvents } from './aws';
-import { loadStacks } from './loader';
-import { log } from './log';
-import { prompt } from './prompt';
+import { UserError } from '../util/errors';
+import { allSettled, logFailures } from '../util/promises';
+import { cfn, listAllResources, waitForAndLogEvents } from '../aws';
+import { loadStacks } from '../util/loader';
+import { log } from '../util/log';
+import { prompt } from '../util/prompt';
 
 async function showResources(stackName) {
   const resources = _(await listAllResources({ stackName }))

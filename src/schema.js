@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import _ from 'lodash';
 
-import { log } from './log';
+import { log } from './util/log';
 
 const URL = 'http://vstoolkit.amazonwebservices.com/CloudFormationSchema/CloudFormationV1.schema';
 const cacheDir = appdirs.userCacheDir('cloudinator', 'building5');

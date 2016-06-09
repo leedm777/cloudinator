@@ -2,11 +2,11 @@
 
 import _ from 'lodash';
 
-import { UserError } from './errors';
-import { allSettled, logFailures } from './promises';
-import { loadStacks } from './loader';
-import { log } from './log';
-import { cfn, describeStack, waitForAndLogEvents } from './aws';
+import { UserError } from '../util/errors';
+import { allSettled, logFailures } from '../util/promises';
+import { loadStacks } from '../util/loader';
+import { log } from '../util/log';
+import { cfn, describeStack, waitForAndLogEvents } from '../aws';
 
 function mapOutputs(awsOutput) {
   return _.reduce(awsOutput, (acc, { OutputKey, OutputValue }) => {

@@ -6,9 +6,9 @@ import colors from 'colors/safe';
 import uuid from 'uuid';
 import { diff as deepDiff } from 'deep-diff';
 
-import { UserError } from './errors';
-import { loadStacks } from './loader';
-import { log } from './log';
+import { UserError } from '../util/errors';
+import { loadStacks } from '../util/loader';
+import { log } from '../util/log';
 
 const cfn = new AWS.CloudFormation({
   apiVersion: '2010-05-15',

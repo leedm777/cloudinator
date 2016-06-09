@@ -3,8 +3,8 @@
 import assert from 'assert';
 import path from 'path';
 
-import { loadFile } from '../src/loader';
-import { UserError } from '../src/errors';
+import { loadFile } from '../src/util/loader';
+import { UserError } from '../src/util/errors';
 
 describe('loader', () => {
   const expected = {
