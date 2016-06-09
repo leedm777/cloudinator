@@ -2,7 +2,6 @@
 
 import _ from 'lodash';
 
-import { UserError } from '../util/errors';
 import { allSettled, logFailures } from '../util/promises';
 import { cfn, listAllResources, waitForAndLogEvents } from '../aws';
 import { loadStacks } from '../util/loader';
@@ -18,19 +17,19 @@ async function showResources(stackName) {
 
 async function destroyStacks({ stacksFile, only }) {
   if (!stacksFile) {
-    throw new UserError('Missing stacks-file');
+    throw new Error('Missing stacks-file');
   }
 
   const { stacks } = await loadStacks(stacksFile);
 
   if (!stacks || !_.isObject(stacks)) {
-    throw new UserError(`Expected ${stacksFile} to have \`stacks\` object`);
+    throw new Error(`Expected ${stacksFile} to have \`stacks\` object`);
   }
 
   if (!_.isEmpty(only)) {
     const unknown = _.difference(only, _.keys(stacks));
     if (!_.isEmpty(unknown)) {
-      throw new UserError(`Unknown stacks: ${unknown.join(',')}`);
+      throw new Error(`Unknown stacks: ${unknown.join(',')}`);
     }
   } else {
     only = _.keys(stacks);

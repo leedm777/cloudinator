@@ -2,7 +2,6 @@
 
 import _ from 'lodash';
 
-import { UserError } from '../util/errors';
 import { allSettled, logFailures } from '../util/promises';
 import { loadStacks } from '../util/loader';
 import { log } from '../util/log';
@@ -21,19 +20,19 @@ function objectToKVArray(obj) {
 
 async function createStacks({ stacksFile, only }) {
   if (!stacksFile) {
-    throw new UserError('Missing stacks-file');
+    throw new Error('Missing stacks-file');
   }
 
   const { config, stacks } = await loadStacks(stacksFile);
 
   if (!stacks || !_.isObject(stacks)) {
-    throw new UserError(`Expected ${stacks} to have \`stacks\` object`);
+    throw new Error(`Expected ${stacks} to have \`stacks\` object`);
   }
 
   if (!_.isEmpty(only)) {
     const unknown = _.difference(only, _.keys(stacks));
     if (!_.isEmpty(unknown)) {
-      throw new UserError(`Unknown stacks: ${unknown.join(',')}`);
+      throw new Error(`Unknown stacks: ${unknown.join(',')}`);
     }
   } else {
     only = _.keys(stacks);
@@ -60,7 +59,7 @@ async function createStacks({ stacksFile, only }) {
         }, parameters);
       }
     } catch (err) {
-      throw new UserError(`Error from dependency: ${err.message}`);
+      throw new Error(`Error from dependency: ${err.message}`);
     }
 
     // finally params set in the stack itself

@@ -5,7 +5,6 @@ import path from 'path';
 import _ from 'lodash';
 
 import { log } from './log';
-import { UserError } from './errors';
 
 function resolve(content) {
   return Promise.resolve(content)
@@ -73,7 +72,7 @@ export async function loadFile(file, basePath = process.cwd()) {
   if (!key) {
     const ext = path.extname(file);
     log.fatal({ file, ext }, 'Unknown file type');
-    throw new UserError(`Unrecognized file type: ${ext}`);
+    throw new Error(`Unrecognized file type: ${ext}`);
   }
 
   register(key);

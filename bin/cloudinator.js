@@ -9,7 +9,7 @@ const path = require('path');
 /* eslint-disable global-require */
 fs.stat(path.join(__dirname, '..', 'server.js'), (err) => {
   if (err) {
-    require('../lib/cli');
+    require('../lib/cli'); // eslint-disable-line import/no-unresolved
     return;
   }
   require('../server');

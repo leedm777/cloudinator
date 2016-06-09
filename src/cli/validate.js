@@ -2,7 +2,6 @@
 
 import AWS from 'aws-sdk';
 
-import { UserError } from '../util/errors';
 import { loadFile } from '../util/loader';
 import { log } from '../util/log';
 
@@ -13,14 +12,14 @@ const cfn = new AWS.CloudFormation({
 
 async function validate({ template }) {
   if (!template) {
-    throw new UserError('Missing argument --template');
+    throw new Error('Missing argument --template');
   }
 
   let content;
   try {
     content = JSON.stringify(await loadFile(template));
   } catch (err) {
-    throw new UserError(err.message);
+    throw new Error(err.message);
   }
 
   await cfn.validateTemplate({ TemplateBody: content }).promise();

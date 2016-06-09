@@ -6,7 +6,6 @@ import colors from 'colors/safe';
 import uuid from 'uuid';
 import { diff as deepDiff } from 'deep-diff';
 
-import { UserError } from '../util/errors';
 import { loadStacks } from '../util/loader';
 import { log } from '../util/log';
 
@@ -219,19 +218,19 @@ function showDiff({ differences, stacksFile, stackName }) {
 
 async function applyStack({ stacksFile, only, diff, changeSet }) {
   if (!stacksFile) {
-    throw new UserError('Missing --stacks');
+    throw new Error('Missing --stacks');
   }
 
   const { config, stacks } = await loadStacks(stacksFile);
 
   if (!stacks || !_.isObject(stacks)) {
-    throw new UserError(`Expected ${stacks} to have \`stacks\` object`);
+    throw new Error(`Expected ${stacks} to have \`stacks\` object`);
   }
 
   if (!_.isEmpty(only)) {
     const unknown = _.difference(only, _.keys(stacks));
     if (!_.isEmpty(unknown)) {
-      throw new UserError(`Unknown stacks: ${unknown.join(',')}`);
+      throw new Error(`Unknown stacks: ${unknown.join(',')}`);
     }
   } else {
     only = _.keys(stacks);
@@ -388,7 +387,7 @@ async function applyStack({ stacksFile, only, diff, changeSet }) {
     })));
 
   if (failedStacks !== 0) {
-    throw new UserError(`Failed to apply ${failedStacks} stacks`);
+    throw new Error(`Failed to apply ${failedStacks} stacks`);
   }
 }
 

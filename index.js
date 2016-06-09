@@ -15,7 +15,7 @@ try {
 }
 
 if (err) {
-  module.exports = require('./lib');
+  module.exports = require('./lib'); // eslint-disable-line import/no-unresolved
 } else {
   require('babel-polyfill');
   require('babel-register')({

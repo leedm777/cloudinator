@@ -12,7 +12,6 @@ import destroy from './destroy';
 import outdated from './outdated';
 import plan from './plan';
 import validate from './validate';
-import { UserError } from '../util/errors';
 import { initLogger, log } from '../util/log';
 import { version } from '../../package.json';
 
@@ -55,11 +54,6 @@ new Promise(resolve => resolve(program.subcommand()))
     process.exit(0);
   })
   .catch(err => {
-    if (err instanceof UserError) {
-      log.fatal(err.message);
-    } else {
-      log.fatal({ err }, 'Uncaught exception');
-    }
-
+    log.fatal({ err }, 'Uncaught exception');
     process.exit(1);
   });

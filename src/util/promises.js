@@ -1,6 +1,5 @@
 import _ from 'lodash';
 
-import { UserError } from './errors';
 import { log } from './log';
 
 /**
@@ -33,6 +32,6 @@ export function logFailures(array, message) {
     }
 
     _.forEach(failures, err => log.error({ err }, message));
-    throw new UserError(`${message}: ${_.size(failures)} errors`);
+    throw new Error(`${message}: ${_.size(failures)} errors`);
   });
 }

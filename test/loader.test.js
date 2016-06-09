@@ -4,7 +4,6 @@ import assert from 'assert';
 import path from 'path';
 
 import { loadFile } from '../src/util/loader';
-import { UserError } from '../src/util/errors';
 
 describe('loader', () => {
   const expected = {
@@ -30,7 +29,7 @@ describe('loader', () => {
         await loadFile(path.join(__dirname, 'data', 'not-a-template.txt'));
         assert.fail('should not have loaded');
       } catch (err) {
-        assert.ok(err instanceof UserError);
+        assert.ok(err);
       }
     });
   });
