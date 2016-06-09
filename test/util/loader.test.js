@@ -3,7 +3,7 @@
 import assert from 'assert';
 import path from 'path';
 
-import { loadFile } from '../src/util/loader';
+import { loadFile } from '../../src/util/loader';
 
 describe('loader', () => {
   const expected = {

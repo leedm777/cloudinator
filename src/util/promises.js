@@ -21,7 +21,7 @@ export function allSettled(array) {
  * @param {String} message Log message for failures.
  */
 export function logFailures(array, message) {
-  return array.then(a => {
+  return Promise.resolve(array).then(a => {
     const failures = _(a)
       .filter('cause')
       .map('cause')
@@ -32,6 +32,6 @@ export function logFailures(array, message) {
     }
 
     _.forEach(failures, err => log.error({ err }, message));
-    throw new Error(`${message}: ${_.size(failures)} errors`);
+    throw failures[0];
   });
 }
