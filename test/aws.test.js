@@ -189,4 +189,52 @@ describe('aws', () => {
       });
     });
   });
+
+  describe('getLastEventId', () => {
+    describe('when cfn.describeStackEvents throws an error', () => {
+      beforeEach(() => {
+        sinon.stub(aws.cfn, 'describeStackEvents')
+          .withArgs({ StackName: 'some-stack' })
+          .returns(awsReject(new Error('some error')));
+      });
+
+      it('should throw the error', async() => {
+        try {
+          await aws.getLastEventId({ stackName: 'some-stack' });
+          assert.fail('should have thrown');
+        } catch (err) {
+          assert.strictEqual(err.message, 'some error');
+        }
+      });
+    });
+    describe('when cfn.describeStackEvents returns no events', () => {
+      beforeEach(() => {
+        sinon.stub(aws.cfn, 'describeStackEvents')
+          .withArgs({ StackName: 'some-stack' })
+          .returns(awsResolve({ StackEvents: [] }));
+      });
+      it('should return null', async() => {
+        const actual = await aws.getLastEventId({ stackName: 'some-stack' });
+        assert.strictEqual(actual, undefined);
+      });
+    });
+    describe('when cfn.describeStackEvents returns some events', () => {
+      beforeEach(() => {
+        sinon.stub(aws.cfn, 'describeStackEvents')
+          .withArgs({ StackName: 'some-stack' })
+          .returns(awsResolve({
+            StackEvents: [
+              { EventId: 'some-event' },
+              { EventId: 'some-other-event' },
+              { EventId: 'moar-events' },
+            ],
+          }));
+      });
+
+      it('should return the first event id', async () => {
+        const actual = await aws.getLastEventId({ stackName: 'some-stack' });
+        assert.strictEqual(actual, 'some-event');
+      });
+    });
+  });
 });
