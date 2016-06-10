@@ -9,6 +9,7 @@
     "clean": "rm -rf lib/",
     "prepublish": "npm run test && npm run clean && npm run build",
     "test": "mocha && eslint .",
+    "for-cover": "npm run cover",
     "cover": "babel-node node_modules/.bin/babel-istanbul cover --report html --dir build/coverage _mocha"
   },
   "keywords": [],

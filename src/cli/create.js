@@ -53,7 +53,7 @@ async function createStacks({ stacksFile, only }) {
 
         parameters = await _.reduce(stack.dependsOn, async(p, dependent) => {
           const description = await (_.includes(only, dependent) ?
-            createStack(dependent) : describeStack(dependent));
+            createStack(dependent) : describeStack({ stackName: dependent }));
           const outputs = mapOutputs(_.get(description, 'Outputs'));
           return _.assign({}, await p, outputs);
         }, parameters);
