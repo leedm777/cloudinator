@@ -71,7 +71,7 @@ export async function loadFile(file, basePath = process.cwd()) {
 
   if (!key) {
     const ext = path.extname(file);
-    log.fatal({ file, ext }, 'Unknown file type');
+    log.error({ file, ext }, 'Unknown file type');
     throw new Error(`Unrecognized file type: ${ext}`);
   }
 
