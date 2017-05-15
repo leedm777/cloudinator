@@ -80,9 +80,14 @@ export async function waitForAndLogEvents({ stackName, lastEventId }) {
   // miss them.
   const stack = await describeStack({ stackName, cached: false });
 
+  if (!stack) {
+    throw new Error('Stack does not exist');
+  }
+
   let { StackEvents: stackEvents } =
     await cfn.describeStackEvents({ StackName: stackName }).promise();
 
+  return;
   // oldest events are at the end of the array; discard everything past
   // lastEventId
   stackEvents = _.takeWhile(stackEvents, e => e.EventId !== lastEventId);

@@ -4,6 +4,7 @@ import assert from 'assert';
 import util from 'util';
 
 import * as aws from '../src/aws';
+import { log } from '../src/util/log';
 
 /**
  * Wraps a value with a promise, which is wrapped in the AWS wrapper object
@@ -231,9 +232,71 @@ describe('aws', () => {
           }));
       });
 
-      it('should return the first event id', async () => {
+      it('should return the first event id', async() => {
         const actual = await aws.getLastEventId({ stackName: 'some-stack' });
         assert.strictEqual(actual, 'some-event');
+      });
+    });
+  });
+
+  describe('waitForAndLogEvents', async() => {
+    beforeEach(() => {
+      sinon.stub(log, 'info');
+    });
+
+    describe('when describeStacks fails', () => {
+      beforeEach(() => {
+        sinon.stub(aws.cfn, 'describeStacks')
+          .withArgs({ StackName: 'some-stack' })
+          .returns(awsReject(new AWSError({ code: 'SomeError', message: 'some error' })));
+      });
+
+      it('should throw that error', async() => {
+        try {
+          await aws.waitForAndLogEvents({ stackName: 'some-stack' });
+          assert.fail('should have thrown');
+        } catch (err) {
+          assert.strictEqual(err.message, 'some error');
+        }
+      });
+    });
+
+    describe('when stack does not exist', () => {
+      beforeEach(() => {
+        sinon.stub(aws.cfn, 'describeStacks')
+          .withArgs({ StackName: 'some-stack' })
+          .returns(awsReject(new AWSError({ code: 'ValidationError', message: 'does not exist' })));
+      });
+
+      it('should throw does not exist error', async() => {
+        try {
+          await aws.waitForAndLogEvents({ stackName: 'some-stack' });
+          assert.fail('should have thrown');
+        } catch (err) {
+          assert.strictEqual(err.message, 'Stack does not exist');
+        }
+      });
+    });
+
+    describe('when stack exists', () => {
+      describe('when describeStackEvents fails', () => {
+        beforeEach(() => {
+          sinon.stub(aws.cfn, 'describeStacks')
+            .withArgs({ StackName: 'some-stack' })
+            .returns(awsResolve({ Stacks: [{}] }));
+          sinon.stub(aws.cfn, 'describeStackEvents')
+            .withArgs({ StackName: 'some-stack' })
+            .returns(awsReject(new AWSError({ message: 'some error' })));
+        });
+
+        it('should throw that error', async() => {
+          try {
+            await aws.waitForAndLogEvents({ stackName: 'some-stack' });
+            assert.fail('should have thrown');
+          } catch (err) {
+            assert.strictEqual(err.message, 'some error');
+          }
+        });
       });
     });
   });
