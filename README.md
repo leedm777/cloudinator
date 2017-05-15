@@ -2,6 +2,8 @@
 
 CloudFormation tooling and DSL for writing templates without insanity.
 
+Just an idea; no clue how workable this actually might be.
+
 ```JavaScript
 import { Template } from 'cloudinator';
 
